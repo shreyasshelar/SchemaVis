@@ -1,0 +1,30 @@
+# ── Local development profile ──────────────────────────────────────
+# Requires: docker compose -f docker-compose.dev.yml up -d
+# (or any local PostgreSQL on port 5432 with db=schemavis user=schemavis)
+#
+# PostgreSQL gives production parity — same SQL dialect, same migrations,
+# real persistence across restarts. No more "works in dev, fails in prod"
+# surprises from H2 dialect differences.
+
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/schemavis}
+    username: ${DB_USER:schemavis}
+    password: ${DB_PASSWORD:schemavis}
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 10000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate        # Flyway owns the schema — Hibernate only validates
+    show-sql: false             # flip to true if debugging a specific query
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    com.schemavis: DEBUG
+    org.springframework.web: INFO
+    org.flywaydb: INFO

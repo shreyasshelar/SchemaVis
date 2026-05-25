@@ -1,0 +1,25 @@
+# Local development database only.
+# Run: docker compose -f docker-compose.dev.yml up -d
+# Then: cd backend && mvn spring-boot:run
+# And:  cd frontend && npm run dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: schemavis
+      POSTGRES_USER: schemavis
+      POSTGRES_PASSWORD: schemavis
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schemavis"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata_dev:

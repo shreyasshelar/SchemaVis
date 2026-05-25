@@ -1,0 +1,28 @@
+# ── Production profile ─────────────────────────────────────────────
+# Set these environment variables on your host / PaaS / K8s secret:
+#   DATABASE_URL       jdbc:postgresql://host:5432/db
+#   DB_USER            database username
+#   DB_PASSWORD        database password
+#   GEMINI_API_KEY     Gemini API key
+
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      connection-timeout: 20000
+      pool-name: SchemaVisHikari
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+logging:
+  level:
+    com.schemavis: INFO
+    root: WARN

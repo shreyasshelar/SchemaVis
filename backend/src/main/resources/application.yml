@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: schema-visualiser
+  profiles:
+    active: dev
+
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Flyway auto-detects datasource URL — no override needed for PostgreSQL
+
+  cache:
+    type: simple   # swap to 'redis' for multi-instance prod
+
+# ── Actuator ──────────────────────────────────────────────────────
+# Only health + info exposed publicly.  Add metrics behind auth in prod.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: SchemaVis
+    version: '@project.version@'
+
+# ── Gemini AI ─────────────────────────────────────────────────────
+gemini:
+  api-key: ${GEMINI_API_KEY:your-api-key-here}
+  model: gemini-2.5-flash
+  base-url: https://generativelanguage.googleapis.com/v1beta/models
+
+# ── Rate limiting (requests per IP per minute) ────────────────────
+rate-limit:
+  requests-per-minute: ${RATE_LIMIT:20}
+
+# ── OpenAPI / Swagger ─────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+# ── Server ────────────────────────────────────────────────────────
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/plain
+    min-response-size: 1024
