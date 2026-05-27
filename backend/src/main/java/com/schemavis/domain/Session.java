@@ -27,6 +27,12 @@ public class Session {
     @Column(name = "schema_complete", nullable = false)
     private boolean schemaComplete = false;
 
+    @Column(name = "user_id", length = 36)
+    private String userId;
+
+    @Column(name = "name", nullable = false, length = 100)
+    private String name = "New Schema";
+
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL,
                orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("position ASC")
@@ -35,12 +41,19 @@ public class Session {
     protected Session() {}
 
     // ── Factory ───────────────────────────────────────────────
-    public static Session create() {
+    public static Session create(String userId, String name) {
         Session s = new Session();
-        s.id = UUID.randomUUID().toString();
-        s.createdAt = Instant.now();
+        s.id           = UUID.randomUUID().toString();
+        s.createdAt    = Instant.now();
         s.lastActivity = Instant.now();
+        s.userId       = userId;
+        s.name         = (name != null && !name.isBlank()) ? name.trim() : "New Schema";
         return s;
+    }
+
+    /** Backward-compat factory (anonymous) */
+    public static Session create() {
+        return create(null, "New Schema");
     }
 
     public void touch() {
@@ -61,7 +74,11 @@ public class Session {
     public boolean isSchemaComplete()      { return schemaComplete; }
     public List<Message> getMessages()     { return messages; }
 
+    public String  getUserId()    { return userId; }
+    public String  getName()      { return name; }
+
     public void setCurrentDiagram(String d)   { this.currentDiagram = d; }
     public void setSchemaComplete(boolean c)  { this.schemaComplete = c; }
     public void setLastActivity(Instant t)    { this.lastActivity = t; }
+    public void setName(String n)             { this.name = (n != null && !n.isBlank()) ? n.trim() : this.name; }
 }

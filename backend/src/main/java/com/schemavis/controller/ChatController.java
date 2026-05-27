@@ -1,6 +1,7 @@
 package com.schemavis.controller;
 
 import com.schemavis.config.RateLimitConfig;
+import com.schemavis.domain.User;
 import com.schemavis.dto.SendMessageRequest;
 import com.schemavis.dto.SendMessageResponse;
 import com.schemavis.exception.AppException;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -44,10 +46,11 @@ public class ChatController {
     public ResponseEntity<SendMessageResponse> sendMessage(
             @PathVariable String id,
             @Valid @RequestBody SendMessageRequest request,
+            @AuthenticationPrincipal User user,
             HttpServletRequest httpRequest
     ) {
         checkRateLimit(httpRequest);
-        return ResponseEntity.ok(chatService.sendMessage(id, request.content()));
+        return ResponseEntity.ok(chatService.sendMessage(id, request.content(), user.getId()));
     }
 
     // ── Rate limit helper ─────────────────────────────────────

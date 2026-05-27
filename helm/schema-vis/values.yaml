@@ -1,0 +1,92 @@
+# ── Registry ─────────────────────────────────────────────────────
+registry: ghcr.io
+imageOwner: shreyasshelar          # ghcr.io owner (GitHub username / org)
+
+# ── Backend ──────────────────────────────────────────────────────
+backend:
+  image:
+    repository: ghcr.io/shreyasshelar/schema-vis-backend
+    tag: latest
+    pullPolicy: Always
+  replicaCount: 1
+  port: 8080
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1"
+  # Non-secret env vars — secrets injected at deploy time via --set
+  env:
+    SPRING_PROFILES_ACTIVE: prod
+    SPRING_DATASOURCE_URL: jdbc:postgresql://schema-vis-postgres:5432/schemavis
+    SPRING_DATASOURCE_USERNAME: schemavis
+    RATE_LIMIT: "20"
+  # Secret values — override at deploy time (never commit real values here)
+  secrets:
+    SPRING_DATASOURCE_PASSWORD: ""
+    JWT_SECRET: ""
+    GEMINI_API_KEY: ""
+  # Liveness / readiness via Spring Actuator
+  probes:
+    liveness:
+      path: /actuator/health/liveness
+      initialDelaySeconds: 60
+      periodSeconds: 30
+    readiness:
+      path: /actuator/health/readiness
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+# ── Frontend ─────────────────────────────────────────────────────
+frontend:
+  image:
+    repository: ghcr.io/shreyasshelar/schema-vis-frontend
+    tag: latest
+    pullPolicy: Always
+  replicaCount: 1
+  port: 80
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "200m"
+
+# ── PostgreSQL ───────────────────────────────────────────────────
+postgres:
+  enabled: true
+  image: postgres:16-alpine
+  port: 5432
+  database: schemavis
+  user: schemavis
+  storage: 5Gi
+  storageClass: local-path      # k3s default; change for other distros
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# ── Cloudflare Tunnel ────────────────────────────────────────────
+# 1. Create a tunnel in Cloudflare Zero Trust → Networks → Tunnels
+# 2. Copy the tunnel token
+# 3. Add a CNAME DNS record:  <hostname>  →  <tunnel-id>.cfargotunnel.com
+# 4. Pass --set cloudflared.tunnelToken=<token>  (or via GitHub secret)
+cloudflared:
+  enabled: true
+  image: cloudflare/cloudflared:2025.1.0
+  replicaCount: 2              # 2 replicas = HA (Cloudflare load-balances)
+  tunnelToken: ""              # injected at deploy time — NEVER commit
+  hostname: schema-vis.example.com   # override with your subdomain
+  resources:
+    requests:
+      memory: "32Mi"
+      cpu: "25m"
+    limits:
+      memory: "64Mi"
+      cpu: "100m"

@@ -1,0 +1,19 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: schema-vis-postgres-pvc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "schema-vis.labels" . | nindent 4 }}
+  # Retain data if the release is deleted — prevents accidental data loss
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.postgres.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.storage }}
+{{- end }}

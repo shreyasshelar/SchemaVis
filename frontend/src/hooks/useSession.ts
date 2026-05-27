@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { sessionsApi } from '@/api/sessions'
 import { useAppStore } from '@/store/appStore'
+import { projectKeys } from '@/hooks/useProjects'
 import type { NewSessionRequest, MessageDto } from '@/types/api'
 
 // ── Keys ─────────────────────────────────────────────────────────
@@ -13,39 +14,45 @@ export const sessionKeys = {
 // ── Create session ────────────────────────────────────────────────
 export function useCreateSession() {
   const { startSession, setPhase } = useAppStore()
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: (req: NewSessionRequest) => sessionsApi.create(req),
     onSuccess: (data) => {
       const firstMsg: MessageDto = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: data.message,
+        id:        crypto.randomUUID(),
+        role:      'assistant',
+        content:   data.message,
         createdAt: new Date().toISOString(),
       }
       startSession(data.sessionId, firstMsg, data.diagram)
       if (data.complete) setPhase('complete')
+      // Refresh the projects sidebar
+      qc.invalidateQueries({ queryKey: projectKeys.all })
     },
   })
 }
 
-// ── Fetch session detail (used to rehydrate on refresh) ───────────
-// Note: TanStack Query v5 removed onSuccess from useQuery options.
-// Side-effects on query data are handled via useEffect instead.
+// ── Fetch session detail (rehydrate on project switch or page refresh) ──
 export function useSessionDetail(sessionId: string | null) {
-  const { startSession, updateDiagram, setPhase, messages } = useAppStore()
-  const qc = useQueryClient()
+  const { startSession, updateDiagram, setPhase } = useAppStore()
+  // Track which sessionId we've already restored so re-fetches don't overwrite active chat
+  const restoredForRef = useRef<string | null>(null)
 
   const query = useQuery({
     queryKey: sessionKeys.detail(sessionId ?? ''),
-    queryFn: () => sessionsApi.get(sessionId!),
-    enabled: !!sessionId && messages.length === 0, // skip if store already populated
-    staleTime: Infinity,
+    queryFn:  () => sessionsApi.get(sessionId!),
+    enabled:   !!sessionId,
+    staleTime: 30_000,
   })
 
   useEffect(() => {
     if (!query.data) return
     const data = query.data
+    // Skip if we already restored this session (prevents overwriting in-progress chat)
+    if (data.sessionId === restoredForRef.current) return
+    restoredForRef.current = data.sessionId
+
     const msgs = data.messages.map((m) => ({
       ...m,
       role: m.role as 'user' | 'assistant',
@@ -55,8 +62,9 @@ export function useSessionDetail(sessionId: string | null) {
       msgs.slice(1).forEach((m) => useAppStore.getState().appendMessage(m))
       if (data.currentDiagram) updateDiagram(data.currentDiagram)
       if (data.complete) setPhase('complete')
+    } else {
+      useAppStore.setState({ phase: 'chatting' })
     }
-    qc.setQueryData(sessionKeys.detail(sessionId!), data)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.data])
 
@@ -66,9 +74,13 @@ export function useSessionDetail(sessionId: string | null) {
 // ── Delete session ────────────────────────────────────────────────
 export function useDeleteSession() {
   const { resetSession } = useAppStore()
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: (sessionId: string) => sessionsApi.remove(sessionId),
-    onSuccess: () => resetSession(),
+    onSuccess: () => {
+      resetSession()
+      qc.invalidateQueries({ queryKey: projectKeys.all })
+    },
   })
 }

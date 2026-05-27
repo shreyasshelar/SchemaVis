@@ -1,0 +1,14 @@
+apiVersion: v2
+name: schema-vis
+description: Schema Visualiser — full-stack ER diagram tool (backend + frontend + postgres + cloudflared)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - schema
+  - visualiser
+  - postgresql
+  - spring-boot
+  - react
+maintainers:
+  - name: shreyasshelar

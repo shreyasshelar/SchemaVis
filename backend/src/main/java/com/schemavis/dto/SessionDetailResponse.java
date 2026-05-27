@@ -9,6 +9,7 @@ import java.util.List;
 public record SessionDetailResponse(
 
         String sessionId,
+        String name,
         Instant createdAt,
         Instant lastActivity,
         String currentDiagram,

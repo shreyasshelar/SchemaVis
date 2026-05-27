@@ -2,7 +2,11 @@
 
 > Chat with AI to design your database schema. Describe your domain in plain English (or paste DDL) and watch a live entity-relationship diagram build itself in real time.
 
-![CI](https://github.com/shreyasshelar/schema-vis/actions/workflows/ci.yml/badge.svg)
+[![CI](https://img.shields.io/github/actions/workflow/status/shreyasshelar/schema-vis/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/shreyasshelar/schema-vis/actions/workflows/ci.yml)
+[![Java](https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 
 ---
 

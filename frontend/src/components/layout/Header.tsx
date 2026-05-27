@@ -1,23 +1,18 @@
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/store/appStore'
-import { useDeleteSession } from '@/hooks/useSession'
+import { useAuthStore } from '@/store/authStore'
+import { useLogout } from '@/hooks/useAuth'
 import { IconButton } from '@/components/ui/IconButton'
 import { Spinner } from '@/components/ui/Spinner'
 import {
-  PlusIcon,
-  LayoutPanelLeftIcon,
-  CheckCircleIcon,
-  DatabaseIcon,
+  LayoutPanelLeftIcon, CheckCircleIcon, DatabaseIcon,
+  LogOutIcon, UserCircleIcon,
 } from 'lucide-react'
 
 export function Header() {
-  const { phase, sessionId, diagramVisible, toggleDiagram } = useAppStore()
-  const deleteSession = useDeleteSession()
-
-  const handleNewSession = () => {
-    if (!sessionId) return
-    deleteSession.mutate(sessionId)
-  }
+  const { phase, diagramVisible, toggleDiagram } = useAppStore()
+  const { user } = useAuthStore()
+  const logout = useLogout()
 
   return (
     <header className="flex-none h-12 flex items-center justify-between px-4 border-b border-brd bg-panel/90 backdrop-blur-md z-10">
@@ -47,26 +42,10 @@ export function Header() {
             <span className="text-xs text-ok font-medium">Schema complete</span>
           </motion.div>
         )}
-        {phase === 'chatting' && (
-          <span className="text-xs text-sec font-mono opacity-60">
-            {sessionId?.slice(0, 8)}…
-          </span>
-        )}
       </div>
 
-      {/* ── Actions ──────────────────────────────────────────── */}
+      {/* ── Right actions ─────────────────────────────────────── */}
       <div className="flex items-center gap-1">
-        <IconButton
-          icon={
-            deleteSession.isPending
-              ? <Spinner size={14} className="text-sec" />
-              : <PlusIcon size={15} />
-          }
-          label="New session"
-          tooltipSide="bottom"
-          disabled={!sessionId || deleteSession.isPending}
-          onClick={handleNewSession}
-        />
         <IconButton
           icon={<LayoutPanelLeftIcon size={15} />}
           label={diagramVisible ? 'Hide diagram' : 'Show diagram'}
@@ -74,6 +53,24 @@ export function Header() {
           onClick={toggleDiagram}
           className={diagramVisible ? 'text-acc' : ''}
         />
+
+        {user && (
+          <div className="flex items-center gap-2 ml-2 pl-2 border-l border-brd">
+            <div className="flex items-center gap-1.5 text-sec">
+              <UserCircleIcon size={14} />
+              <span className="text-xs hidden sm:block max-w-[100px] truncate">
+                {user.displayName}
+              </span>
+            </div>
+            <IconButton
+              icon={<LogOutIcon size={14} />}
+              label="Sign out"
+              tooltipSide="bottom"
+              onClick={logout}
+              className="text-sec hover:text-red-400"
+            />
+          </div>
+        )}
       </div>
     </header>
   )

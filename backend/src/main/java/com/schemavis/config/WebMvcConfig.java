@@ -19,7 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "http://localhost:5173",  // Vite dev server
                         "http://localhost:4173"   // Vite preview
                 )
-                .allowedMethods("GET", "POST", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .maxAge(3600);
     }

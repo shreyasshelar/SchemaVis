@@ -7,5 +7,8 @@ public record NewSessionRequest(
 
         @Schema(description = "Optional SQL DDL to seed the session with",
                 example = "CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(255));")
-        String ddl
+        String ddl,
+
+        @Schema(description = "Human-friendly project name", example = "E-Commerce DB")
+        String name
 ) {}

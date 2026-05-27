@@ -1,0 +1,71 @@
+{{- if .Values.cloudflared.enabled }}
+# Cloudflare Tunnel connector
+# Receives traffic from Cloudflare's edge at {{ .Values.cloudflared.hostname }}
+# and forwards it to the frontend service (which proxies /api/ to backend).
+#
+# No Ingress, no LoadBalancer, no open ports on your router needed.
+# Cloudflare's edge handles TLS termination + DDoS protection.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-vis-cloudflared
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "schema-vis.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.cloudflared.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "schema-vis.selectorLabels" (list . "cloudflared") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "schema-vis.selectorLabels" (list . "cloudflared") | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/cloudflared-secret.yaml") . | sha256sum }}
+    spec:
+      # cloudflared doesn't need service account permissions
+      automountServiceAccountToken: false
+      containers:
+        - name: cloudflared
+          image: {{ .Values.cloudflared.image }}
+          imagePullPolicy: Always
+          args:
+            - tunnel
+            - --no-autoupdate
+            - --metrics
+            - 0.0.0.0:2000    # Prometheus metrics endpoint
+            - run
+            - --token
+            - $(TUNNEL_TOKEN)
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: schema-vis-cloudflared-secret
+                  key: TUNNEL_TOKEN
+          resources:
+            {{- toYaml .Values.cloudflared.resources | nindent 12 }}
+          # Health check via cloudflared's built-in metrics endpoint
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      # Spread replicas across nodes if available
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "schema-vis.selectorLabels" (list . "cloudflared") | nindent 14 }}
+{{- end }}

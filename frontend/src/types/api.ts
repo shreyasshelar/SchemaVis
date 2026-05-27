@@ -1,47 +1,75 @@
-// ── Request types ────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────
+export interface AuthResponse {
+  token:       string
+  userId:      string
+  email:       string
+  displayName: string
+}
+
+export interface UserDto {
+  id:          string
+  email:       string
+  displayName: string
+}
+
+// ── Request types ─────────────────────────────────────────────────
 export interface NewSessionRequest {
-  ddl?: string
+  ddl?:  string
+  name?: string
 }
 
 export interface SendMessageRequest {
   content: string
 }
 
-// ── Response types ───────────────────────────────────────────────
+// ── Response types ────────────────────────────────────────────────
 export interface NewSessionResponse {
   sessionId: string
-  message: string
-  diagram: string | null
-  complete: boolean
+  message:   string
+  diagram:   string | null
+  complete:  boolean
+  name:      string
 }
 
 export interface SendMessageResponse {
   messageId: string
-  content: string
-  diagram: string | null
-  complete: boolean
+  content:   string
+  diagram:   string | null
+  complete:  boolean
 }
 
 export interface MessageDto {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
+  id:        string
+  role:      'user' | 'assistant'
+  content:   string
   createdAt: string
 }
 
 export interface SessionDetailResponse {
-  sessionId: string
-  createdAt: string
-  lastActivity: string
+  sessionId:      string
+  name:           string
+  createdAt:      string
+  lastActivity:   string
   currentDiagram: string | null
-  complete: boolean
-  messages: MessageDto[]
+  complete:       boolean
+  messages:       MessageDto[]
 }
 
-// ── Error shape ──────────────────────────────────────────────────
+/** Lightweight summary returned by GET /api/sessions (projects list) */
+export interface SessionSummary {
+  sessionId:    string
+  name:         string
+  createdAt:    string
+  lastActivity: string
+  complete:     boolean
+  hasDiagram:   boolean
+  messageCount: number
+}
+
+// ── Error shape ───────────────────────────────────────────────────
 export interface ApiError {
-  code: string
-  message: string
-  details?: string[]
+  code:      string
+  message:   string
+  details?:  string[]
   timestamp: string
 }

@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Orchestrates the full chat → AI → diagram pipeline.
@@ -41,11 +42,46 @@ public class ChatService {
         this.diagramParser = diagramParser;
     }
 
+    // ── List sessions for user ─────────────────────────────────
+
+    @Transactional
+    public List<SessionSummaryResponse> listSessions(String userId) {
+        return sessionRepository.findByUserIdOrderByLastActivityDesc(userId).stream()
+                .map(s -> new SessionSummaryResponse(
+                        s.getId(),
+                        s.getName(),
+                        s.getCreatedAt(),
+                        s.getLastActivity(),
+                        s.isSchemaComplete(),
+                        s.getCurrentDiagram() != null,
+                        s.getMessages().size()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    // ── Rename session ────────────────────────────────────────
+
+    @Transactional
+    public SessionSummaryResponse renameSession(String sessionId, String name, String userId) {
+        Session session = requireOwned(sessionId, userId);
+        session.setName(name);
+        sessionRepository.save(session);
+        return new SessionSummaryResponse(
+                session.getId(),
+                session.getName(),
+                session.getCreatedAt(),
+                session.getLastActivity(),
+                session.isSchemaComplete(),
+                session.getCurrentDiagram() != null,
+                session.getMessages().size()
+        );
+    }
+
     // ── Create session ────────────────────────────────────────
 
     @Transactional
-    public NewSessionResponse createSession(String ddl) {
-        Session session = Session.create();
+    public NewSessionResponse createSession(String ddl, String name, String userId) {
+        Session session = Session.create(userId, name);
 
         // Build the opening user message
         String openingMessage = buildOpeningMessage(ddl);
@@ -65,22 +101,23 @@ public class ChatService {
         session.touch();
 
         sessionRepository.save(session);
-        log.info("Created session {} (ddl={})", session.getId(), ddl != null && !ddl.isBlank());
+        log.info("Created session {} name='{}' (ddl={})",
+                session.getId(), session.getName(), ddl != null && !ddl.isBlank());
 
         return new NewSessionResponse(
                 session.getId(),
                 diagramParser.cleanMessage(rawReply),
                 diagram,
-                complete
+                complete,
+                session.getName()
         );
     }
 
     // ── Send message ──────────────────────────────────────────
 
     @Transactional
-    public SendMessageResponse sendMessage(String sessionId, String content) {
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> AppException.notFound("Session", sessionId));
+    public SendMessageResponse sendMessage(String sessionId, String content, String userId) {
+        Session session = requireOwned(sessionId, userId);
 
         // Persist user message
         session.addMessage(Message.of("user", content));
@@ -116,9 +153,8 @@ public class ChatService {
     // ── Get session detail ────────────────────────────────────
 
     @Transactional
-    public SessionDetailResponse getSession(String sessionId) {
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> AppException.notFound("Session", sessionId));
+    public SessionDetailResponse getSession(String sessionId, String userId) {
+        Session session = requireOwned(sessionId, userId);
 
         List<SessionDetailResponse.MessageDto> dtos = session.getMessages().stream()
                 .map(m -> new SessionDetailResponse.MessageDto(
@@ -128,6 +164,7 @@ public class ChatService {
 
         return new SessionDetailResponse(
                 session.getId(),
+                session.getName(),
                 session.getCreatedAt(),
                 session.getLastActivity(),
                 session.getCurrentDiagram(),
@@ -139,12 +176,21 @@ public class ChatService {
     // ── Delete session ────────────────────────────────────────
 
     @Transactional
-    public void deleteSession(String sessionId) {
-        if (!sessionRepository.existsById(sessionId)) {
-            throw AppException.notFound("Session", sessionId);
-        }
+    public void deleteSession(String sessionId, String userId) {
+        requireOwned(sessionId, userId);
         sessionRepository.deleteById(sessionId);
         log.info("Deleted session {}", sessionId);
+    }
+
+    // ── Ownership guard ───────────────────────────────────────
+
+    private Session requireOwned(String sessionId, String userId) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> AppException.notFound("Session", sessionId));
+        if (userId != null && !userId.equals(session.getUserId())) {
+            throw AppException.forbidden("session");
+        }
+        return session;
     }
 
     // ── Private helpers ───────────────────────────────────────

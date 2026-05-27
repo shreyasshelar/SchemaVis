@@ -15,5 +15,8 @@ public record NewSessionResponse(
         String diagram,
 
         @Schema(description = "True once the AI signals the schema is fully captured")
-        boolean complete
+        boolean complete,
+
+        @Schema(description = "Human-friendly project name")
+        String name
 ) {}

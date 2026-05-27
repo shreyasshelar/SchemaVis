@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-vis-backend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "schema-vis.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "schema-vis.selectorLabels" (list . "backend") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.backend.port }}
+      targetPort: http

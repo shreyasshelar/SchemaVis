@@ -35,4 +35,17 @@ public class AppException extends RuntimeException {
         return new AppException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED",
                 "Too many requests — please slow down.");
     }
+
+    public static AppException unauthorized(String message) {
+        return new AppException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
+    }
+
+    public static AppException forbidden(String resource) {
+        return new AppException(HttpStatus.FORBIDDEN, "FORBIDDEN",
+                "Access denied to " + resource);
+    }
+
+    public static AppException conflict(String message) {
+        return new AppException(HttpStatus.CONFLICT, "CONFLICT", message);
+    }
 }
