@@ -3,7 +3,6 @@ import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { useLogout } from '@/hooks/useAuth'
 import { IconButton } from '@/components/ui/IconButton'
-import { Spinner } from '@/components/ui/Spinner'
 import {
   LayoutPanelLeftIcon, CheckCircleIcon, DatabaseIcon,
   LogOutIcon, UserCircleIcon,
