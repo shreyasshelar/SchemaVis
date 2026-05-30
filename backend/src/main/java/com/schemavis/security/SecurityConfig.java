@@ -38,7 +38,8 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/v3/api-docs/**",
-                        "/actuator/health").permitAll()
+                        "/actuator/health",
+                        "/actuator/health/**").permitAll()
                 // Everything else requires a valid JWT
                 .anyRequest().authenticated()
             )
