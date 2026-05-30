@@ -26,6 +26,12 @@ spec:
     spec:
       # cloudflared doesn't need service account permissions
       automountServiceAccountToken: false
+      {{- with .Values.cloudflared.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: cloudflared
           image: {{ .Values.cloudflared.image }}

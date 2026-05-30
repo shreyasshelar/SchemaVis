@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SchemaVis — Setup Guide</title>
+<style>
+  :root{--bg:#08080f;--panel:#0f0f1a;--surf:#13131f;--acc:#7c6af7;--hi:#eaeaf5;--sec:#8a8aab;--ok:#4ade80;--warn:#facc15;--brd:#1e1e30;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--hi);font-family:system-ui,sans-serif;}
+  header{border-bottom:1px solid var(--brd);padding:16px 32px;display:flex;align-items:center;gap:12px;}
+  .logo{font-size:1.2rem;font-weight:800;} .logo span{color:var(--acc);}
+  a.back{margin-left:auto;color:var(--sec);text-decoration:none;font-size:.85rem;}
+  a.back:hover{color:var(--hi);}
+  main{max-width:800px;margin:0 auto;padding:40px 24px 80px;}
+  h2{font-size:1.6rem;font-weight:800;margin-bottom:8px;}
+  .subtitle{color:var(--sec);font-size:.9rem;margin-bottom:12px;}
+  .progress-summary{background:var(--panel);border:1px solid var(--brd);border-radius:12px;padding:16px 20px;margin-bottom:36px;display:flex;align-items:center;gap:16px;}
+  .prog-count{font-size:1.8rem;font-weight:800;color:var(--acc);}
+  .prog-label{color:var(--sec);font-size:.85rem;}
+  .prog-bar-wrap{flex:1;height:6px;background:var(--surf);border-radius:999px;overflow:hidden;}
+  .prog-bar{height:100%;background:var(--acc);border-radius:999px;transition:width .4s;}
+
+  .phase{margin-bottom:40px;}
+  .phase-title{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--sec);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+  .phase-title::after{content:'';flex:1;height:1px;background:var(--brd);}
+
+  .item{background:var(--panel);border:1px solid var(--brd);border-radius:10px;margin-bottom:8px;overflow:hidden;transition:border-color .2s;}
+  .item.done{border-color:rgba(74,222,128,.4);}
+  .item-header{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;cursor:pointer;}
+  .checkbox{width:20px;height:20px;border-radius:6px;border:2px solid var(--brd);flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:.2s;cursor:pointer;}
+  .item.done .checkbox{background:var(--ok);border-color:var(--ok);}
+  .check-icon{display:none;color:#000;font-size:.8rem;font-weight:900;}
+  .item.done .check-icon{display:block;}
+  .item-text{flex:1;}
+  .item-title{font-size:.9rem;font-weight:600;margin-bottom:2px;}
+  .item.done .item-title{color:var(--sec);text-decoration:line-through;}
+  .item-sub{font-size:.8rem;color:var(--sec);line-height:1.5;}
+  .expand-icon{color:var(--sec);font-size:.8rem;margin-top:2px;transition:transform .2s;}
+  .item.open .expand-icon{transform:rotate(180deg);}
+  .item-body{display:none;padding:0 16px 14px 50px;}
+  .item.open .item-body{display:block;}
+  .code{background:#0a0a14;border:1px solid var(--brd);border-radius:8px;padding:12px 14px;font-family:monospace;font-size:.78rem;line-height:1.8;overflow-x:auto;white-space:pre;margin-top:8px;position:relative;}
+  .copy-btn{position:absolute;top:8px;right:8px;background:var(--surf);border:1px solid var(--brd);border-radius:5px;color:var(--sec);font-size:.7rem;padding:2px 8px;cursor:pointer;}
+  .copy-btn:hover{color:var(--hi);}
+  .note{background:rgba(250,204,21,.08);border:1px solid rgba(250,204,21,.2);border-radius:6px;padding:8px 12px;font-size:.8rem;color:var(--warn);margin-top:8px;}
+  .info{background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.2);border-radius:6px;padding:8px 12px;font-size:.8rem;color:#a78bfa;margin-top:8px;}
+  .c{color:#4a4a7a;} .s{color:#4ade80;} .k{color:#60a5fa;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Schema<span>Vis</span></div>
+  <a class="back" href="index.html">← Docs home</a>
+</header>
+<main>
+  <h2>Setup Guide</h2>
+  <p class="subtitle">Click each step to expand commands. Check off as you complete them.</p>
+
+  <div class="progress-summary">
+    <div>
+      <div class="prog-count" id="doneCount">0</div>
+      <div class="prog-label">of <span id="totalCount">0</span> steps done</div>
+    </div>
+    <div class="prog-bar-wrap"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
+  </div>
+
+  <!-- PHASE 1: GCP -->
+  <div class="phase">
+    <div class="phase-title">① GCP VM</div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Create e2-medium VM</div>
+          <div class="item-sub">Compute Engine → Create Instance</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="info">GCP Console → Compute Engine → VM Instances → Create Instance</div>
+        <div class="code"><span class="c"># Settings to use:</span>
+Name:         schema-vis
+Region:       asia-south1 (Mumbai)
+Zone:         asia-south1-a
+Machine type: e2-medium  (1 vCPU, 4 GB RAM)
+Boot disk:    Ubuntu 22.04 LTS, 30 GB SSD
+Firewall:     ✓ Allow HTTP traffic  (needed for Let's Encrypt check, can disable after)
+              ✗ Allow HTTPS traffic (Cloudflare tunnel handles this)</div>
+        <div class="note">Cost: ~$34/month from your $300 credits = ~8 months free.</div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">SSH into the VM</div>
+          <div class="item-sub">Open the browser SSH or use gcloud CLI</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code"><span class="c"># Option A: Browser SSH (easiest)</span>
+GCP Console → VM Instances → SSH button
+
+<span class="c"># Option B: gcloud CLI</span>
+gcloud compute ssh schema-vis --zone=asia-south1-a</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 2: k3s -->
+  <div class="phase">
+    <div class="phase-title">② k3s (Kubernetes)</div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Install k3s</div>
+          <div class="item-sub">Single command — includes kubectl, Helm-ready, metrics-server</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code">curl -sfL https://get.k3s.io | sh -
+
+<span class="c"># Copy kubeconfig so kubectl works as your user</span>
+mkdir -p ~/.kube
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $USER:$USER ~/.kube/config
+
+<span class="c"># Verify</span>
+kubectl get nodes</div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Install Helm</div>
+          <div class="item-sub">Package manager for Kubernetes</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code">curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+helm version</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 3: ArgoCD -->
+  <div class="phase">
+    <div class="phase-title">③ ArgoCD + Image Updater</div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Install ArgoCD</div>
+          <div class="item-sub">GitOps engine — reconciles git → cluster</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code">kubectl create namespace argocd
+kubectl apply -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+<span class="c"># Wait for ArgoCD to be ready</span>
+kubectl wait --for=condition=available deployment/argocd-server \
+  -n argocd --timeout=120s
+
+<span class="c"># Get initial admin password</span>
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d && echo</div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Install ArgoCD Image Updater</div>
+          <div class="item-sub">Watches ghcr.io and commits new image tags to git</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code">kubectl apply -n argocd \
+  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml</div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Create ghcr.io pull secret</div>
+          <div class="item-sub">Lets Image Updater read private image tags</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="note">Create a GitHub PAT with <code>read:packages</code> scope at github.com → Settings → Developer settings → PAT.</div>
+        <div class="code"><span class="c"># Replace YOUR_GITHUB_TOKEN with your PAT</span>
+kubectl create secret docker-registry ghcr-credentials \
+  --namespace argocd \
+  --docker-server=ghcr.io \
+  --docker-username=shreyasshelar \
+  --docker-password=YOUR_GITHUB_TOKEN</div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Create git write-back secret</div>
+          <div class="item-sub">Lets Image Updater commit new image tags to your repo</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="note">Create a GitHub PAT with <code>repo</code> (write) scope — separate from the read-only one above.</div>
+        <div class="code"><span class="c"># Replace YOUR_WRITE_TOKEN</span>
+kubectl create secret generic git-write-token \
+  --namespace argocd \
+  --from-literal=password=YOUR_WRITE_TOKEN \
+  --from-literal=username=shreyasshelar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 4: Secrets -->
+  <div class="phase">
+    <div class="phase-title">④ Application Secrets (one-time, on VM)</div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Create namespace + backend secret</div>
+          <div class="item-sub">DB password, JWT key, AI API keys</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code">kubectl create namespace schema-vis
+
+kubectl create secret generic schema-vis-backend-secret \
+  --namespace schema-vis \
+  --from-literal=SPRING_DATASOURCE_PASSWORD=<span class="s">'your-db-password'</span> \
+  --from-literal=JWT_SECRET=<span class="s">'your-64-char-jwt-secret-here-make-it-long!!'</span> \
+  --from-literal=GEMINI_API_KEY=<span class="s">'your-gemini-key'</span> \
+  --from-literal=GROQ_API_KEY=<span class="s">'your-groq-key'</span> \
+  --from-literal=OPENROUTER_API_KEY=<span class="s">'your-openrouter-key'</span></div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Create postgres + cloudflared secrets</div>
+          <div class="item-sub">DB credentials and Cloudflare tunnel token</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code">kubectl create secret generic schema-vis-postgres-secret \
+  --namespace schema-vis \
+  --from-literal=POSTGRES_PASSWORD=<span class="s">'your-db-password'</span> \
+  --from-literal=POSTGRES_USER=schemavis \
+  --from-literal=POSTGRES_DB=schemavis
+
+kubectl create secret generic schema-vis-cloudflared-secret \
+  --namespace schema-vis \
+  --from-literal=TUNNEL_TOKEN=<span class="s">'your-cloudflare-tunnel-token'</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 5: Cloudflare -->
+  <div class="phase">
+    <div class="phase-title">⑤ Cloudflare Tunnel</div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Create tunnel in Cloudflare Zero Trust</div>
+          <div class="item-sub">one.dash.cloudflare.com → Networks → Tunnels</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="info">
+          1. Go to <strong>one.dash.cloudflare.com</strong><br>
+          2. Networks → Tunnels → Create a tunnel<br>
+          3. Name: <code>schema-vis</code><br>
+          4. Copy the tunnel token → use it in the secret above<br>
+          5. Public Hostname tab → Add hostname:<br>
+          &nbsp;&nbsp;Subdomain: <code>schema</code> · Domain: <code>shreyasshelar.uk</code><br>
+          &nbsp;&nbsp;Service: <code>http://schema-vis-frontend.schema-vis.svc.cluster.local:80</code>
+        </div>
+        <div class="note">DNS CNAME is created automatically by Cloudflare — no manual DNS entry needed.</div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Add argocd.shreyasshelar.uk hostname</div>
+          <div class="item-sub">Expose ArgoCD UI via the same tunnel</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="info">
+          In the same tunnel, add a second Public Hostname:<br>
+          Subdomain: <code>argocd</code> · Domain: <code>shreyasshelar.uk</code><br>
+          Service: <code>http://argocd-server.argocd.svc.cluster.local:80</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 6: Deploy -->
+  <div class="phase">
+    <div class="phase-title">⑥ First Deploy</div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Apply the ArgoCD Application</div>
+          <div class="item-sub">This is the only helm/kubectl command you'll ever run for deploys</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code"><span class="c"># Clone your repo first (or git pull)</span>
+git clone https://github.com/shreyasshelar/SchemaVis.git
+cd SchemaVis
+
+kubectl apply -f k8s/argocd-app.yaml
+
+<span class="c"># Watch ArgoCD sync</span>
+kubectl get application schema-vis -n argocd -w</div>
+        <div class="info">ArgoCD will pull the Helm chart from GitHub and deploy all services. Takes ~2–3 minutes.</div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Verify everything is running</div>
+          <div class="item-sub">All pods should be Running or Completed</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="code">kubectl get pods -n schema-vis
+kubectl get hpa -n schema-vis
+
+<span class="c"># Expected output:</span>
+<span class="s">schema-vis-backend-xxx    Running
+schema-vis-frontend-xxx   Running
+schema-vis-postgres-xxx   Running
+schema-vis-cloudflared-xxx Running (×2)</span></div>
+      </div>
+    </div>
+
+    <div class="item" onclick="toggle(this)">
+      <div class="item-header">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="item-text">
+          <div class="item-title">Visit your app 🎉</div>
+          <div class="item-sub">Open schemavis.shreyasshelar.uk in your browser</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="item-body">
+        <div class="info">
+          <strong>App:</strong> https://schemavis.shreyasshelar.uk<br>
+          <strong>ArgoCD UI:</strong> https://argocd.shreyasshelar.uk (user: admin, password from step ③)
+        </div>
+        <div class="note">From now on: push to main → images build → ArgoCD auto-deploys. No SSH needed.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  function toggle(item) {
+    const isCheck = event.target.closest('.checkbox');
+    if (isCheck) {
+      event.stopPropagation();
+      item.classList.toggle('done');
+      updateProgress();
+      return;
+    }
+    item.classList.toggle('open');
+  }
+
+  function updateProgress() {
+    const all  = document.querySelectorAll('.item');
+    const done = document.querySelectorAll('.item.done');
+    document.getElementById('doneCount').textContent  = done.length;
+    document.getElementById('totalCount').textContent = all.length;
+    document.getElementById('progBar').style.width    = (done.length / all.length * 100) + '%';
+  }
+
+  // Init count
+  updateProgress();
+</script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SchemaVis — API Reference</title>
+<style>
+  :root{--bg:#08080f;--panel:#0f0f1a;--surf:#13131f;--acc:#7c6af7;--hi:#eaeaf5;--sec:#8a8aab;--ok:#4ade80;--warn:#facc15;--err:#f87171;--brd:#1e1e30;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--hi);font-family:system-ui,sans-serif;}
+  header{border-bottom:1px solid var(--brd);padding:16px 32px;display:flex;align-items:center;gap:12px;}
+  .logo{font-size:1.2rem;font-weight:800;} .logo span{color:var(--acc);}
+  a.back{margin-left:auto;color:var(--sec);text-decoration:none;font-size:.85rem;}
+  a.back:hover{color:var(--hi);}
+  main{max-width:860px;margin:0 auto;padding:40px 24px;}
+  h2{font-size:1.6rem;font-weight:800;margin-bottom:8px;}
+  .subtitle{color:var(--sec);font-size:.9rem;margin-bottom:36px;}
+  .section-title{font-size:1rem;font-weight:700;color:var(--sec);text-transform:uppercase;letter-spacing:.08em;margin:32px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--brd);}
+  .endpoint{background:var(--panel);border:1px solid var(--brd);border-radius:12px;margin-bottom:12px;overflow:hidden;}
+  .ep-header{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;transition:background .15s;}
+  .ep-header:hover{background:var(--surf);}
+  .method{font-size:.72rem;font-weight:800;padding:3px 9px;border-radius:5px;min-width:48px;text-align:center;}
+  .GET{background:rgba(74,222,128,.15);color:var(--ok);}
+  .POST{background:rgba(96,165,250,.15);color:#60a5fa;}
+  .PUT{background:rgba(250,204,21,.15);color:var(--warn);}
+  .DELETE{background:rgba(248,113,113,.15);color:var(--err);}
+  .ep-path{font-family:monospace;font-size:.875rem;color:var(--hi);flex:1;}
+  .ep-desc{color:var(--sec);font-size:.8rem;}
+  .lock{font-size:.8rem;margin-left:auto;color:var(--sec);}
+  .ep-body{display:none;padding:0 18px 18px;border-top:1px solid var(--brd);}
+  .ep-body.open{display:block;}
+  .code-block{background:#0a0a14;border:1px solid var(--brd);border-radius:8px;padding:14px;font-family:monospace;font-size:.78rem;line-height:1.7;overflow-x:auto;margin-top:10px;white-space:pre;}
+  .tab-bar{display:flex;gap:4px;margin-top:14px;margin-bottom:4px;}
+  .tab{padding:5px 12px;border-radius:6px;font-size:.75rem;cursor:pointer;border:1px solid var(--brd);color:var(--sec);background:transparent;}
+  .tab.active{background:var(--surf);color:var(--hi);border-color:var(--acc);}
+  .k{color:#60a5fa;} .s{color:#4ade80;} .n{color:#fb923c;} .c{color:#8a8aab;}
+  .auth-note{background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.2);border-radius:8px;padding:10px 14px;font-size:.8rem;color:var(--sec);margin-top:10px;}
+  .status-codes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .sc{font-size:.72rem;padding:2px 8px;border-radius:5px;font-family:monospace;}
+  .sc-2{background:rgba(74,222,128,.1);color:var(--ok);}
+  .sc-4{background:rgba(248,113,113,.1);color:var(--err);}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Schema<span>Vis</span></div>
+  <a class="back" href="index.html">← Docs home</a>
+</header>
+<main>
+  <h2>API Reference</h2>
+  <p class="subtitle">Base URL: <code>https://schemavis.shreyasshelar.uk/api</code> &nbsp;·&nbsp; Click any endpoint to expand. 🔒 = requires <code>Authorization: Bearer &lt;token&gt;</code></p>
+
+  <!-- AUTH -->
+  <div class="section-title">Authentication</div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span>
+      <span class="ep-path">/auth/register</span>
+      <span class="ep-desc">Create a new account</span>
+    </div>
+    <div class="ep-body">
+      <div class="tab-bar"><span class="tab active" onclick="showTab(this,'req')">Request</span><span class="tab" onclick="showTab(this,'res')">Response</span></div>
+      <div class="tab-pane" data-tab="req"><div class="code-block"><span class="c">// POST /api/auth/register</span>
+{
+  <span class="k">"email"</span>:       <span class="s">"user@example.com"</span>,
+  <span class="k">"password"</span>:    <span class="s">"mypassword123"</span>,   <span class="c">// 8–100 chars</span>
+  <span class="k">"displayName"</span>: <span class="s">"Shreyas"</span>          <span class="c">// 2–50 chars</span>
+}</div></div>
+      <div class="tab-pane" data-tab="res" style="display:none"><div class="code-block">{
+  <span class="k">"token"</span>:       <span class="s">"eyJhbGci..."</span>,    <span class="c">// JWT — 30 day expiry</span>
+  <span class="k">"userId"</span>:      <span class="s">"uuid-here"</span>,
+  <span class="k">"email"</span>:       <span class="s">"user@example.com"</span>,
+  <span class="k">"displayName"</span>: <span class="s">"Shreyas"</span>
+}</div></div>
+      <div class="status-codes"><span class="sc sc-2">201 Created</span><span class="sc sc-4">400 Validation</span><span class="sc sc-4">409 Email taken</span></div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span>
+      <span class="ep-path">/auth/login</span>
+      <span class="ep-desc">Sign in, get JWT</span>
+    </div>
+    <div class="ep-body">
+      <div class="tab-bar"><span class="tab active" onclick="showTab(this,'req')">Request</span><span class="tab" onclick="showTab(this,'res')">Response</span></div>
+      <div class="tab-pane" data-tab="req"><div class="code-block">{
+  <span class="k">"email"</span>:    <span class="s">"user@example.com"</span>,
+  <span class="k">"password"</span>: <span class="s">"mypassword123"</span>
+}</div></div>
+      <div class="tab-pane" data-tab="res" style="display:none"><div class="code-block">{
+  <span class="k">"token"</span>:       <span class="s">"eyJhbGci..."</span>,
+  <span class="k">"userId"</span>:      <span class="s">"uuid-here"</span>,
+  <span class="k">"email"</span>:       <span class="s">"user@example.com"</span>,
+  <span class="k">"displayName"</span>: <span class="s">"Shreyas"</span>
+}</div></div>
+      <div class="status-codes"><span class="sc sc-2">200 OK</span><span class="sc sc-4">401 Bad credentials</span></div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span>
+      <span class="ep-path">/auth/me</span>
+      <span class="ep-desc">Get current user</span>
+      <span class="lock">🔒</span>
+    </div>
+    <div class="ep-body">
+      <div class="auth-note">Requires <code>Authorization: Bearer &lt;token&gt;</code> header.</div>
+      <div class="code-block" style="margin-top:10px">{
+  <span class="k">"id"</span>:          <span class="s">"uuid"</span>,
+  <span class="k">"email"</span>:       <span class="s">"user@example.com"</span>,
+  <span class="k">"displayName"</span>: <span class="s">"Shreyas"</span>
+}</div>
+      <div class="status-codes"><span class="sc sc-2">200 OK</span><span class="sc sc-4">401 Unauthorized</span></div>
+    </div>
+  </div>
+
+  <!-- SESSIONS -->
+  <div class="section-title">Sessions (Projects)</div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span>
+      <span class="ep-path">/sessions</span>
+      <span class="ep-desc">List all projects for current user</span>
+      <span class="lock">🔒</span>
+    </div>
+    <div class="ep-body">
+      <div class="code-block">[
+  {
+    <span class="k">"sessionId"</span>:    <span class="s">"uuid"</span>,
+    <span class="k">"name"</span>:          <span class="s">"E-commerce Schema"</span>,
+    <span class="k">"createdAt"</span>:    <span class="s">"2026-05-30T10:00:00Z"</span>,
+    <span class="k">"lastActivity"</span>: <span class="s">"2026-05-30T11:22:00Z"</span>,
+    <span class="k">"complete"</span>:      <span class="n">false</span>,
+    <span class="k">"hasDiagram"</span>:   <span class="n">true</span>,
+    <span class="k">"messageCount"</span>: <span class="n">12</span>
+  }
+]</div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span>
+      <span class="ep-path">/sessions</span>
+      <span class="ep-desc">Create a new project (optionally seed with DDL)</span>
+      <span class="lock">🔒</span>
+    </div>
+    <div class="ep-body">
+      <div class="tab-bar"><span class="tab active" onclick="showTab(this,'req')">Request</span><span class="tab" onclick="showTab(this,'res')">Response</span></div>
+      <div class="tab-pane" data-tab="req"><div class="code-block">{
+  <span class="k">"name"</span>: <span class="s">"My SaaS Schema"</span>,   <span class="c">// optional</span>
+  <span class="k">"ddl"</span>:  <span class="s">"CREATE TABLE ..."</span>  <span class="c">// optional SQL DDL</span>
+}</div></div>
+      <div class="tab-pane" data-tab="res" style="display:none"><div class="code-block">{
+  <span class="k">"sessionId"</span>: <span class="s">"uuid"</span>,
+  <span class="k">"name"</span>:      <span class="s">"My SaaS Schema"</span>,
+  <span class="k">"message"</span>:   <span class="s">"I've analysed your DDL..."</span>,  <span class="c">// AI reply</span>
+  <span class="k">"diagram"</span>:   <span class="s">"erDiagram\n  ..."</span>,            <span class="c">// Mermaid or null</span>
+  <span class="k">"complete"</span>:  <span class="n">false</span>
+}</div></div>
+      <div class="status-codes"><span class="sc sc-2">201 Created</span><span class="sc sc-4">429 Rate limited</span><span class="sc sc-4">503 AI unavailable</span></div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span>
+      <span class="ep-path">/sessions/{id}</span>
+      <span class="ep-desc">Get full session with message history</span>
+      <span class="lock">🔒</span>
+    </div>
+    <div class="ep-body">
+      <div class="code-block">{
+  <span class="k">"sessionId"</span>:      <span class="s">"uuid"</span>,
+  <span class="k">"name"</span>:            <span class="s">"My SaaS Schema"</span>,
+  <span class="k">"currentDiagram"</span>: <span class="s">"erDiagram\n  ..."</span>,
+  <span class="k">"complete"</span>:        <span class="n">false</span>,
+  <span class="k">"messages"</span>: [
+    { <span class="k">"id"</span>: <span class="s">"uuid"</span>, <span class="k">"role"</span>: <span class="s">"user"</span>,      <span class="k">"content"</span>: <span class="s">"I have a users table..."</span> },
+    { <span class="k">"id"</span>: <span class="s">"uuid"</span>, <span class="k">"role"</span>: <span class="s">"assistant"</span>, <span class="k">"content"</span>: <span class="s">"[DIAGRAM]..."</span> }
+  ]
+}</div>
+      <div class="status-codes"><span class="sc sc-2">200 OK</span><span class="sc sc-4">403 Not yours</span><span class="sc sc-4">404 Not found</span></div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method PUT">PUT</span>
+      <span class="ep-path">/sessions/{id}/name</span>
+      <span class="ep-desc">Rename a project</span>
+      <span class="lock">🔒</span>
+    </div>
+    <div class="ep-body">
+      <div class="code-block"><span class="c">// Body</span>
+{ <span class="k">"name"</span>: <span class="s">"E-commerce v2"</span> }
+
+<span class="c">// Returns updated SessionSummary</span></div>
+      <div class="status-codes"><span class="sc sc-2">200 OK</span><span class="sc sc-4">400 Name blank</span><span class="sc sc-4">403 Not yours</span></div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method DELETE">DELETE</span>
+      <span class="ep-path">/sessions/{id}</span>
+      <span class="ep-desc">Delete a project and all messages</span>
+      <span class="lock">🔒</span>
+    </div>
+    <div class="ep-body">
+      <div class="code-block"><span class="c">// No body. Returns 204 No Content.</span>
+<span class="c">// Cascades: deletes all messages in the session.</span></div>
+      <div class="status-codes"><span class="sc sc-2">204 No Content</span><span class="sc sc-4">403 Not yours</span><span class="sc sc-4">404 Not found</span></div>
+    </div>
+  </div>
+
+  <!-- MESSAGES -->
+  <div class="section-title">Messages (Chat)</div>
+
+  <div class="endpoint">
+    <div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span>
+      <span class="ep-path">/sessions/{id}/messages</span>
+      <span class="ep-desc">Send a message, get AI reply</span>
+      <span class="lock">🔒</span>
+    </div>
+    <div class="ep-body">
+      <div class="tab-bar"><span class="tab active" onclick="showTab(this,'req')">Request</span><span class="tab" onclick="showTab(this,'res')">Response</span></div>
+      <div class="tab-pane" data-tab="req"><div class="code-block">{
+  <span class="k">"content"</span>: <span class="s">"Add a payments table with Stripe customer IDs"</span>
+}</div></div>
+      <div class="tab-pane" data-tab="res" style="display:none"><div class="code-block">{
+  <span class="k">"messageId"</span>: <span class="s">"uuid"</span>,
+  <span class="k">"content"</span>:   <span class="s">"I've added the payments table..."</span>,
+  <span class="k">"diagram"</span>:   <span class="s">"erDiagram\n  ..."</span>,  <span class="c">// null if diagram unchanged</span>
+  <span class="k">"complete"</span>:  <span class="n">false</span>              <span class="c">// true when schema fully captured</span>
+}</div></div>
+      <div class="status-codes">
+        <span class="sc sc-2">200 OK</span>
+        <span class="sc sc-4">400 Content blank</span>
+        <span class="sc sc-4">403 Not yours</span>
+        <span class="sc sc-4">429 Rate limited</span>
+        <span class="sc sc-4">503 All AI providers down</span>
+      </div>
+      <div class="auth-note" style="margin-top:10px">AI fallback chain: <strong>Gemini 2.5 Flash</strong> → <strong>Groq</strong> → <strong>OpenRouter</strong>. Rate limits on any provider trigger automatic fallback.</div>
+    </div>
+  </div>
+</main>
+<script>
+  function toggle(header) {
+    const body = header.nextElementSibling;
+    body.classList.toggle('open');
+  }
+  function showTab(tab, name) {
+    const bar = tab.closest('.tab-bar');
+    const ep  = tab.closest('.ep-body');
+    bar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    ep.querySelectorAll('.tab-pane').forEach(p => p.style.display = p.dataset.tab === name ? 'block' : 'none');
+  }
+</script>
+</body>
+</html>

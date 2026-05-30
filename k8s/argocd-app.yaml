@@ -1,0 +1,66 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: schema-vis
+  namespace: argocd
+  labels:
+    app: schema-vis
+  annotations:
+    # ── ArgoCD Image Updater ──────────────────────────────────────
+    # Watches ghcr.io for new image tags matching sha-* pattern.
+    # Commits updated tags back to git (full audit trail).
+    argocd-image-updater.argoproj.io/image-list: >-
+      backend=ghcr.io/shreyasshelar/schema-vis-backend,
+      frontend=ghcr.io/shreyasshelar/schema-vis-frontend
+
+    # Track latest sha-* tag (new tag per commit)
+    argocd-image-updater.argoproj.io/backend.update-strategy: name
+    argocd-image-updater.argoproj.io/backend.allow-tags: "regexp:^sha-"
+    argocd-image-updater.argoproj.io/frontend.update-strategy: name
+    argocd-image-updater.argoproj.io/frontend.allow-tags: "regexp:^sha-"
+
+    # Private registry credentials (k8s secret in argocd namespace)
+    argocd-image-updater.argoproj.io/backend.pull-secret: pullsecret:argocd/ghcr-credentials
+    argocd-image-updater.argoproj.io/frontend.pull-secret: pullsecret:argocd/ghcr-credentials
+
+    # Map image tags to Helm values
+    argocd-image-updater.argoproj.io/backend.helm.image-tag: backend.image.tag
+    argocd-image-updater.argoproj.io/frontend.helm.image-tag: frontend.image.tag
+
+    # Write new tags back to git (audit trail)
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/git-branch: main
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/shreyasshelar/SchemaVis.git
+    targetRevision: main
+    path: helm/schema-vis
+    helm:
+      valueFiles:
+        - values.yaml
+      # createSecrets=false → ArgoCD never manages secrets
+      # Secrets are pre-created manually on the cluster
+      parameters:
+        - name: createSecrets
+          value: "false"
+
+  destination:
+    server: https://kubernetes.default.svc   # in-cluster (ArgoCD runs on same k3s)
+    namespace: schema-vis
+
+  syncPolicy:
+    automated:
+      prune: true       # delete resources removed from helm chart
+      selfHeal: true    # revert manual changes to the cluster
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

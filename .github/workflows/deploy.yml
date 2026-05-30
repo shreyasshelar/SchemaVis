@@ -3,24 +3,23 @@ name: Deploy
 on:
   push:
     branches: [main]
-  workflow_dispatch:        # allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: false # never cancel a running deploy
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  packages: write           # push to ghcr.io with GITHUB_TOKEN
+  packages: write     # push to ghcr.io
 
 env:
-  REGISTRY: ghcr.io
   IMAGE_BACKEND:  ghcr.io/${{ github.repository_owner }}/schema-vis-backend
   IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/schema-vis-frontend
 
-# ─────────────────────────────────────────────────────────────────
-# JOB 1 — Build & push Docker images (GitHub-hosted runner)
-# ─────────────────────────────────────────────────────────────────
+# GitHub Actions ONLY builds and pushes images.
+# ArgoCD Image Updater detects new tags and triggers deployment automatically.
+# No cluster credentials needed here.
 jobs:
   build-and-push:
     name: Build & Push Images
@@ -36,15 +35,14 @@ jobs:
       - name: Log in to ghcr.io
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Derive a short-sha tag (e.g. sha-a1b2c3d)
-      - name: Docker metadata
+      - name: Docker metadata (short-sha tag)
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -53,71 +51,34 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # ── Backend ───────────────────────────────────────────────
       - name: Build & push backend
         uses: docker/build-push-action@v6
         with:
           context: ./backend
-          file: ./backend/Dockerfile
-          push: true
+          file:    ./backend/Dockerfile
+          push:    true
           tags: |
             ${{ env.IMAGE_BACKEND }}:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_BACKEND }}:latest
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
-      # ── Frontend ──────────────────────────────────────────────
       - name: Build & push frontend
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
+          file:    ./frontend/Dockerfile
+          push:    true
           tags: |
             ${{ env.IMAGE_FRONTEND }}:${{ steps.meta.outputs.version }}
             ${{ env.IMAGE_FRONTEND }}:latest
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
-# ─────────────────────────────────────────────────────────────────
-# JOB 2 — Helm upgrade (self-hosted runner on home server)
-# The runner must have: kubectl (pointing at local cluster) + helm
-# ─────────────────────────────────────────────────────────────────
-  deploy:
-    name: Helm Deploy → Home Server
-    runs-on: [self-hosted, home-server]
-    needs: build-and-push
-    environment: production
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # Pull latest images (runner's Docker daemon, if using k3s ctr import)
-      # If your cluster can pull from ghcr.io directly, remove this step.
-      - name: Log in to ghcr.io (on runner)
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Helm upgrade / install
+      - name: Summary
         run: |
-          helm upgrade --install schema-vis ./helm/schema-vis \
-            --namespace schema-vis \
-            --create-namespace \
-            --atomic \
-            --timeout 5m \
-            --set backend.image.tag=${{ needs.build-and-push.outputs.image-tag }} \
-            --set frontend.image.tag=${{ needs.build-and-push.outputs.image-tag }} \
-            --set backend.secrets.SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-            --set backend.secrets.JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-            --set backend.secrets.GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
-            --set cloudflared.tunnelToken="${{ secrets.CF_TUNNEL_TOKEN }}" \
-            --set cloudflared.hostname="${{ vars.CF_HOSTNAME }}"
-
-      - name: Verify rollout
-        run: |
-          kubectl rollout status deployment/schema-vis-backend  -n schema-vis --timeout=3m
-          kubectl rollout status deployment/schema-vis-frontend -n schema-vis --timeout=3m
+          echo "### Images pushed" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_BACKEND }}:${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_FRONTEND }}:${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ArgoCD Image Updater will detect the new tags and reconcile the cluster." >> $GITHUB_STEP_SUMMARY
