@@ -15,6 +15,12 @@ spec:
       labels:
         {{- include "schema-vis.selectorLabels" (list . "frontend") | nindent 8 }}
     spec:
+      {{- with .Values.frontend.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: frontend
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"

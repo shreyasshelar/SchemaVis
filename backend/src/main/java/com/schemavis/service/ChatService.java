@@ -5,6 +5,7 @@ import com.schemavis.domain.Session;
 import com.schemavis.dto.*;
 import com.schemavis.exception.AppException;
 import com.schemavis.repository.SessionRepository;
+import com.schemavis.service.ai.FallbackAiService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,33 +14,23 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Orchestrates the full chat → AI → diagram pipeline.
- *
- * Responsibilities:
- *  1. Manage Session lifecycle (create, fetch, delete)
- *  2. Persist user and AI messages
- *  3. Delegate AI generation to GeminiService
- *  4. Parse diagram and completion markers via DiagramParserService
- *  5. Map domain objects to DTOs
- */
 @Service
 public class ChatService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
 
-    private final SessionRepository sessionRepository;
-    private final GeminiService geminiService;
+    private final SessionRepository  sessionRepository;
+    private final FallbackAiService  aiService;
     private final DiagramParserService diagramParser;
 
     public ChatService(
             SessionRepository sessionRepository,
-            GeminiService geminiService,
+            FallbackAiService aiService,
             DiagramParserService diagramParser
     ) {
         this.sessionRepository = sessionRepository;
-        this.geminiService = geminiService;
-        this.diagramParser = diagramParser;
+        this.aiService         = aiService;
+        this.diagramParser     = diagramParser;
     }
 
     // ── List sessions for user ─────────────────────────────────
@@ -88,7 +79,7 @@ public class ChatService {
         session.addMessage(Message.of("user", openingMessage));
 
         // Get first AI reply
-        String rawReply = geminiService.generateReply(session.getMessages());
+        String rawReply = aiService.generateReply(session.getMessages());
         Message aiMessage = Message.of("assistant", rawReply);
         session.addMessage(aiMessage);
 
@@ -124,7 +115,7 @@ public class ChatService {
 
         // Call AI with full history
         List<Message> history = session.getMessages();
-        String rawReply = geminiService.generateReply(history);
+        String rawReply = aiService.generateReply(history);
 
         // Persist AI reply
         Message aiMessage = Message.of("assistant", rawReply);

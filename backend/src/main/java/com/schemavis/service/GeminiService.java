@@ -6,9 +6,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.schemavis.domain.Message;
 import com.schemavis.exception.AppException;
+import com.schemavis.service.ai.AiProvider;
+import com.schemavis.service.ai.SystemPrompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -17,64 +20,22 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
-/**
- * Calls the Gemini 2.0 Flash REST API and returns the model's reply.
- *
- * Why REST over an official SDK? There is no official Java SDK for Gemini at
- * this time. Using RestTemplate keeps the dependency footprint minimal and
- * makes it trivial to swap models (one property change).
- */
 @Service
-public class GeminiService {
+@Order(1)
+public class GeminiService implements AiProvider {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
 
-    // ── System prompt ─────────────────────────────────────────
-    private static final String SYSTEM_PROMPT = """
-            You are SchemaVis AI, an expert database schema analyst and ER diagram generator.
+    @Override
+    public String getName() { return "Gemini"; }
 
-            MISSION: Through intelligent conversation, gather a complete picture of a database
-            schema and produce accurate, well-structured Mermaid erDiagram output.
-
-            CONVERSATION RULES:
-            - If SQL DDL is provided, parse ALL tables, columns, types, constraints immediately.
-            - Ask ONE focused question per turn to fill gaps (relationships, cardinalities,
-              junction tables, soft-deletes, multi-tenancy, audit columns, enums).
-            - Output an updated diagram after every meaningful exchange.
-            - Be concise, technically precise, and professional.
-
-            DIAGRAM OUTPUT — wrap every diagram in these exact tags (no exceptions):
-            [DIAGRAM]
-            erDiagram
-                TABLE_NAME {
-                    datatype column_name "constraint"
-                }
-                TABLE1 ||--o{ TABLE2 : "label"
-            [/DIAGRAM]
-
-            MERMAID CARDINALITY:
-              ||--||   exactly-one to exactly-one
-              ||--o{   exactly-one to zero-or-more
-              ||--|{   exactly-one to one-or-more
-              }o--o{   zero-or-more to zero-or-more
-
-            COLUMN FORMAT:
-              int        id         PK
-              varchar    name
-              int        user_id    FK
-              timestamp  created_at
-
-            COMPLETION — when the schema is fully captured, append [COMPLETE] at the end
-            of your message (after [/DIAGRAM]).
-            """;
-
-    @Value("${gemini.api-key}")
+    @Value("${ai.gemini.api-key:}")
     private String apiKey;
 
-    @Value("${gemini.model}")
+    @Value("${ai.gemini.model:gemini-2.5-flash}")
     private String model;
 
-    @Value("${gemini.base-url}")
+    @Value("${ai.gemini.base-url:https://generativelanguage.googleapis.com/v1beta/models}")
     private String baseUrl;
 
     private final RestTemplate restTemplate;
@@ -129,7 +90,7 @@ public class GeminiService {
             // System instruction
             ObjectNode sysInstr = objectMapper.createObjectNode();
             ArrayNode sysParts = objectMapper.createArrayNode();
-            sysParts.addObject().put("text", SYSTEM_PROMPT);
+            sysParts.addObject().put("text", SystemPrompt.TEXT);
             sysInstr.set("parts", sysParts);
             root.set("system_instruction", sysInstr);
 

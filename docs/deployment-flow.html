@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SchemaVis — Deployment Flow</title>
+<style>
+  :root{--bg:#08080f;--panel:#0f0f1a;--surf:#13131f;--acc:#7c6af7;--hi:#eaeaf5;--sec:#8a8aab;--ok:#4ade80;--warn:#facc15;--brd:#1e1e30;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--hi);font-family:system-ui,sans-serif;min-height:100vh;}
+  header{border-bottom:1px solid var(--brd);padding:16px 32px;display:flex;align-items:center;gap:12px;}
+  .logo{font-size:1.2rem;font-weight:800;} .logo span{color:var(--acc);}
+  a.back{margin-left:auto;color:var(--sec);text-decoration:none;font-size:.85rem;}
+  a.back:hover{color:var(--hi);}
+  main{max-width:860px;margin:0 auto;padding:40px 24px;}
+  h2{font-size:1.6rem;font-weight:800;margin-bottom:8px;}
+  .subtitle{color:var(--sec);font-size:.9rem;margin-bottom:36px;}
+  .controls{display:flex;gap:12px;margin-bottom:32px;}
+  button{padding:10px 24px;border-radius:8px;border:none;cursor:pointer;font-size:.875rem;font-weight:600;transition:.2s;}
+  .btn-play{background:var(--acc);color:#fff;}
+  .btn-play:hover{background:#6a58e0;}
+  .btn-reset{background:var(--surf);color:var(--sec);border:1px solid var(--brd);}
+  .btn-reset:hover{color:var(--hi);}
+
+  .flow{display:flex;flex-direction:column;gap:0;}
+  .step{display:flex;gap:20px;align-items:flex-start;padding:20px 0;border-bottom:1px solid var(--brd);opacity:.25;transform:translateX(-12px);transition:opacity .5s,transform .5s;}
+  .step.active{opacity:1;transform:none;}
+  .step:last-child{border-bottom:none;}
+  .step-num{flex:none;width:36px;height:36px;border-radius:50%;background:var(--surf);border:2px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--sec);transition:.5s;}
+  .step.active .step-num{background:var(--acc);border-color:var(--acc);color:#fff;}
+  .step-body{flex:1;}
+  .step-title{font-weight:700;font-size:1rem;margin-bottom:6px;}
+  .step-desc{color:var(--sec);font-size:.875rem;line-height:1.6;}
+  .step-tag{display:inline-block;margin-top:8px;font-size:.72rem;padding:2px 10px;border-radius:999px;}
+  .tag-gh{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3);}
+  .tag-cf{background:rgba(246,130,31,.15);color:#f6821f;border:1px solid rgba(246,130,31,.3);}
+  .tag-argo{background:rgba(124,106,247,.15);color:#a78bfa;border:1px solid rgba(124,106,247,.3);}
+  .tag-k8s{background:rgba(74,222,128,.15);color:#4ade80;border:1px solid rgba(74,222,128,.3);}
+  .step-icon{font-size:1.4rem;margin-top:2px;}
+  .progress{height:3px;background:var(--surf);border-radius:999px;margin-bottom:32px;overflow:hidden;}
+  .progress-bar{height:100%;background:var(--acc);border-radius:999px;width:0;transition:width .5s;}
+  .complete-msg{display:none;text-align:center;padding:24px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:12px;margin-top:24px;}
+  .complete-msg h3{color:var(--ok);margin-bottom:8px;}
+  .complete-msg p{color:var(--sec);font-size:.875rem;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Schema<span>Vis</span></div>
+  <a class="back" href="index.html">← Docs home</a>
+</header>
+<main>
+  <h2>Deployment Flow</h2>
+  <p class="subtitle">Press Play to animate what happens from a git push to live pods updating.</p>
+
+  <div class="controls">
+    <button class="btn-play" id="playBtn" onclick="play()">▶ Play</button>
+    <button class="btn-reset" onclick="reset()">↺ Reset</button>
+  </div>
+
+  <div class="progress"><div class="progress-bar" id="bar"></div></div>
+
+  <div class="flow" id="flow">
+    <div class="step" data-delay="0">
+      <div class="step-num">1</div>
+      <div class="step-icon">📝</div>
+      <div class="step-body">
+        <div class="step-title">git push origin main</div>
+        <div class="step-desc">You push code to the <code>main</code> branch on GitHub. This is the only manual action in the entire pipeline.</div>
+        <span class="step-tag tag-gh">GitHub</span>
+      </div>
+    </div>
+    <div class="step" data-delay="900">
+      <div class="step-num">2</div>
+      <div class="step-icon">⚙️</div>
+      <div class="step-body">
+        <div class="step-title">GitHub Actions — CI starts</div>
+        <div class="step-desc">The <code>ci.yml</code> workflow triggers on push to main. Compiles the Java backend, type-checks the TypeScript frontend, runs the build. Fails fast if anything breaks.</div>
+        <span class="step-tag tag-gh">GitHub Actions</span>
+      </div>
+    </div>
+    <div class="step" data-delay="1800">
+      <div class="step-num">3</div>
+      <div class="step-icon">🐳</div>
+      <div class="step-body">
+        <div class="step-title">Docker images built + pushed</div>
+        <div class="step-desc">The <code>deploy.yml</code> workflow builds two multi-stage Docker images (backend + frontend) using BuildKit layer caching. Tags: <code>sha-abc1234</code> and <code>latest</code>. Pushed to <strong>ghcr.io</strong> (private GitHub Container Registry).</div>
+        <span class="step-tag tag-gh">ghcr.io</span>
+      </div>
+    </div>
+    <div class="step" data-delay="2700">
+      <div class="step-num">4</div>
+      <div class="step-icon">🔍</div>
+      <div class="step-body">
+        <div class="step-title">ArgoCD Image Updater detects new tag</div>
+        <div class="step-desc">Image Updater polls ghcr.io every 2 minutes. It sees the new <code>sha-abc1234</code> tag matching the <code>^sha-</code> pattern. It commits updated image tags to the git repo — creating an audit trail entry.</div>
+        <span class="step-tag tag-argo">ArgoCD Image Updater</span>
+      </div>
+    </div>
+    <div class="step" data-delay="3600">
+      <div class="step-num">5</div>
+      <div class="step-icon">🔄</div>
+      <div class="step-body">
+        <div class="step-title">ArgoCD detects git change → diffs cluster</div>
+        <div class="step-desc">ArgoCD sees the new commit (image tag update). It computes a diff between the desired state (git) and the live cluster. Only the backend and frontend Deployments have changed — everything else is untouched.</div>
+        <span class="step-tag tag-argo">ArgoCD</span>
+      </div>
+    </div>
+    <div class="step" data-delay="4500">
+      <div class="step-num">6</div>
+      <div class="step-icon">🚀</div>
+      <div class="step-body">
+        <div class="step-title">Rolling update — zero downtime</div>
+        <div class="step-desc">Kubernetes starts new pods with the new image before terminating old ones (RollingUpdate strategy). Health checks (Spring Actuator <code>/actuator/health/readiness</code>) must pass before traffic is shifted. HPA adjusts replicas based on load.</div>
+        <span class="step-tag tag-k8s">k3s</span>
+      </div>
+    </div>
+    <div class="step" data-delay="5400">
+      <div class="step-num">7</div>
+      <div class="step-icon">☁️</div>
+      <div class="step-body">
+        <div class="step-title">Cloudflare tunnel serves live traffic</div>
+        <div class="step-desc">The cloudflared pods (already running, untouched by this deploy) forward requests from <code>schemavis.shreyasshelar.uk</code> to the new frontend pods. PostgreSQL and cloudflared were never restarted.</div>
+        <span class="step-tag tag-cf">Cloudflare</span>
+      </div>
+    </div>
+    <div class="step" data-delay="6300">
+      <div class="step-num">8</div>
+      <div class="step-icon">✅</div>
+      <div class="step-body">
+        <div class="step-title">Deploy complete — audit trail in git</div>
+        <div class="step-desc">The git history now has a commit from ArgoCD Image Updater: <code>"chore: update backend to sha-abc1234"</code>. Roll back at any time by reverting that commit — ArgoCD self-heals within seconds.</div>
+        <span class="step-tag tag-argo">GitOps</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="complete-msg" id="completeMsg">
+    <h3>✓ Deployment Complete</h3>
+    <p>Total time from git push to live: ~4–6 minutes (dominated by Maven build + Docker layer cache warm-up).<br>Subsequent deploys with warm cache: ~2–3 minutes.</p>
+  </div>
+</main>
+<script>
+  const steps = document.querySelectorAll('.step');
+  const bar   = document.getElementById('bar');
+  const msg   = document.getElementById('completeMsg');
+  let timers  = [];
+  let running = false;
+
+  function play() {
+    if (running) return;
+    running = true;
+    document.getElementById('playBtn').disabled = true;
+    steps.forEach((s, i) => {
+      const delay = parseInt(s.dataset.delay);
+      timers.push(setTimeout(() => {
+        s.classList.add('active');
+        bar.style.width = ((i + 1) / steps.length * 100) + '%';
+        if (i === steps.length - 1) {
+          setTimeout(() => { msg.style.display = 'block'; }, 400);
+        }
+      }, delay));
+    });
+  }
+
+  function reset() {
+    timers.forEach(clearTimeout); timers = []; running = false;
+    steps.forEach(s => s.classList.remove('active'));
+    bar.style.transition = 'none'; bar.style.width = '0';
+    setTimeout(() => bar.style.transition = 'width .5s', 50);
+    msg.style.display = 'none';
+    document.getElementById('playBtn').disabled = false;
+  }
+</script>
+</body>
+</html>

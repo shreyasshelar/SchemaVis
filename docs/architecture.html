@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SchemaVis — Architecture</title>
+<style>
+  :root { --bg:#08080f;--panel:#0f0f1a;--surf:#13131f;--acc:#7c6af7;--hi:#eaeaf5;--sec:#8a8aab;--ok:#4ade80;--warn:#facc15;--brd:#1e1e30; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--hi);font-family:system-ui,sans-serif;min-height:100vh;}
+  header{border-bottom:1px solid var(--brd);padding:16px 32px;display:flex;align-items:center;gap:12px;}
+  .logo{font-size:1.2rem;font-weight:800;}
+  .logo span{color:var(--acc);}
+  a.back{margin-left:auto;color:var(--sec);text-decoration:none;font-size:.85rem;}
+  a.back:hover{color:var(--hi);}
+  h2{font-size:1.6rem;font-weight:800;margin-bottom:8px;}
+  .subtitle{color:var(--sec);font-size:.9rem;margin-bottom:40px;}
+  main{max-width:1100px;margin:0 auto;padding:40px 24px;}
+  .canvas{background:var(--panel);border:1px solid var(--brd);border-radius:16px;padding:20px;position:relative;overflow:auto;}
+  svg text{font-family:system-ui,sans-serif;}
+
+  /* Tooltip */
+  .tooltip{position:fixed;background:#1a1a2e;border:1px solid var(--acc);border-radius:10px;padding:12px 16px;max-width:260px;font-size:.82rem;line-height:1.6;pointer-events:none;opacity:0;transition:opacity .2s;z-index:100;color:var(--hi);}
+  .tooltip.show{opacity:1;}
+  .tooltip h4{color:var(--acc);margin-bottom:6px;font-size:.9rem;}
+
+  /* Legend */
+  .legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:24px;}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--sec);}
+  .dot{width:12px;height:12px;border-radius:3px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Schema<span>Vis</span></div>
+  <a class="back" href="index.html">← Docs home</a>
+</header>
+
+<main>
+  <h2>System Architecture</h2>
+  <p class="subtitle">Hover over any component to see its role. Click to expand details.</p>
+
+  <div class="canvas">
+    <svg id="arch" viewBox="0 0 1000 620" width="100%" style="min-width:700px">
+      <!-- ── Internet / User ── -->
+      <g class="node" data-name="User / Browser" data-desc="End users visit schemavis.shreyasshelar.uk from any device. Cloudflare handles TLS and DDoS protection before traffic reaches your server.">
+        <rect x="20" y="260" width="120" height="50" rx="10" fill="#1a1a2e" stroke="#3b3b5c"/>
+        <text x="80" y="281" text-anchor="middle" fill="#eaeaf5" font-size="12" font-weight="600">🌐 User</text>
+        <text x="80" y="298" text-anchor="middle" fill="#8a8aab" font-size="10">Browser</text>
+      </g>
+
+      <!-- ── Cloudflare Edge ── -->
+      <g class="node" data-name="Cloudflare Edge" data-desc="Cloudflare's global CDN terminates HTTPS, applies WAF rules, and forwards requests through the Zero Trust tunnel to your VM. No ports need to be open on your router.">
+        <rect x="190" y="230" width="140" height="110" rx="12" fill="#1a1829" stroke="#f6821f" stroke-width="1.5"/>
+        <text x="260" y="254" text-anchor="middle" fill="#f6821f" font-size="11" font-weight="700">☁ Cloudflare</text>
+        <rect x="205" y="262" width="110" height="26" rx="6" fill="#251f10" stroke="#f6821f" stroke-width=".8"/>
+        <text x="260" y="279" text-anchor="middle" fill="#f6821f" font-size="10">Edge / CDN / WAF</text>
+        <rect x="205" y="295" width="110" height="26" rx="6" fill="#251f10" stroke="#f6821f" stroke-width=".8"/>
+        <text x="260" y="312" text-anchor="middle" fill="#f6821f" font-size="10">Zero Trust Tunnel</text>
+      </g>
+
+      <!-- ── GitHub ── -->
+      <g class="node" data-name="GitHub" data-desc="Source of truth for code, Helm charts, and ArgoCD Application manifests. GitHub Actions builds Docker images on every push to main and pushes them to ghcr.io (GitHub Container Registry).">
+        <rect x="190" y="40" width="140" height="80" rx="12" fill="#1a1a2e" stroke="#3b3b5c"/>
+        <text x="260" y="65" text-anchor="middle" fill="#eaeaf5" font-size="11" font-weight="700">🐙 GitHub</text>
+        <rect x="205" y="72" width="110" height="22" rx="5" fill="#13131f" stroke="#3b3b5c" stroke-width=".8"/>
+        <text x="260" y="87" text-anchor="middle" fill="#8a8aab" font-size="10">main branch</text>
+        <rect x="205" y="98" width="110" height="22" rx="5" fill="#13131f" stroke="#3b3b5c" stroke-width=".8"/>
+        <text x="260" y="113" text-anchor="middle" fill="#8a8aab" font-size="10">ghcr.io images</text>
+      </g>
+
+      <!-- ── GCP VM Box ── -->
+      <rect x="400" y="20" width="560" height="580" rx="16" fill="#0c0c18" stroke="#2a2a45" stroke-width="1.5" stroke-dasharray="6 3"/>
+      <text x="680" y="48" text-anchor="middle" fill="#2a2a45" font-size="13" font-weight="700">GCP VM · e2-medium · asia-south1 (Mumbai)</text>
+
+      <!-- k3s box -->
+      <rect x="420" y="60" width="520" height="520" rx="12" fill="#0f0f1c" stroke="#1e1e35"/>
+      <text x="680" y="84" text-anchor="middle" fill="#1e1e35" font-size="11">k3s · namespace: schema-vis</text>
+
+      <!-- ── ArgoCD namespace ── -->
+      <g class="node" data-name="ArgoCD" data-desc="GitOps engine running in the argocd namespace. Watches the GitHub repo and reconciles the live cluster to match the desired state in git. Only changed Kubernetes resources are updated — Postgres is never restarted unless its spec changes.">
+        <rect x="430" y="90" width="220" height="90" rx="10" fill="#1a1a30" stroke="#7c6af7" stroke-width="1.5"/>
+        <text x="540" y="115" text-anchor="middle" fill="#7c6af7" font-size="11" font-weight="700">🔄 ArgoCD</text>
+        <rect x="445" y="122" width="90" height="22" rx="5" fill="#13131f" stroke="#7c6af7" stroke-width=".8"/>
+        <text x="490" y="137" text-anchor="middle" fill="#8a8aab" font-size="9">Sync engine</text>
+        <rect x="545" y="122" width="90" height="22" rx="5" fill="#13131f" stroke="#7c6af7" stroke-width=".8"/>
+        <text x="590" y="137" text-anchor="middle" fill="#8a8aab" font-size="9">Image Updater</text>
+        <text x="540" y="165" text-anchor="middle" fill="#4a4a7a" font-size="9">namespace: argocd</text>
+      </g>
+
+      <!-- ── cloudflared ── -->
+      <g class="node" data-name="cloudflared (tunnel connector)" data-desc="Two cloudflared pods run in k3s. They make outbound connections to Cloudflare's edge — no open inbound ports on the VM. Cloudflare load-balances across both replicas for HA. Forwards traffic to schema-vis-frontend:80.">
+        <rect x="660" y="90" width="260" height="90" rx="10" fill="#251f10" stroke="#f6821f" stroke-width="1.5"/>
+        <text x="790" y="115" text-anchor="middle" fill="#f6821f" font-size="11" font-weight="700">🔗 cloudflared</text>
+        <rect x="670" y="122" width="110" height="22" rx="5" fill="#1a1510" stroke="#f6821f" stroke-width=".8"/>
+        <text x="725" y="137" text-anchor="middle" fill="#f6821f" font-size="9">replica 1</text>
+        <rect x="790" y="122" width="120" height="22" rx="5" fill="#1a1510" stroke="#f6821f" stroke-width=".8"/>
+        <text x="850" y="137" text-anchor="middle" fill="#f6821f" font-size="9">replica 2</text>
+        <text x="790" y="165" text-anchor="middle" fill="#6b4a20" font-size="9">HPA · 2 replicas fixed</text>
+      </g>
+
+      <!-- ── Frontend ── -->
+      <g class="node" data-name="schema-vis-frontend" data-desc="nginx serving the React SPA (static files built by Vite). Also reverse-proxies /api/ requests to the backend service. HPA scales 1–3 replicas based on CPU. Image: ghcr.io/shreyasshelar/schema-vis-frontend.">
+        <rect x="430" y="210" width="220" height="100" rx="10" fill="#0f1a15" stroke="#4ade80" stroke-width="1.5"/>
+        <text x="540" y="235" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="700">⚛ Frontend</text>
+        <rect x="445" y="242" width="90" height="22" rx="5" fill="#0a1510" stroke="#4ade80" stroke-width=".8"/>
+        <text x="490" y="257" text-anchor="middle" fill="#8a8aab" font-size="9">nginx:1.27</text>
+        <rect x="545" y="242" width="90" height="22" rx="5" fill="#0a1510" stroke="#4ade80" stroke-width=".8"/>
+        <text x="590" y="257" text-anchor="middle" fill="#8a8aab" font-size="9">React SPA</text>
+        <text x="540" y="295" text-anchor="middle" fill="#2a5a3a" font-size="9">HPA: 1–3 replicas · ClusterIP:80</text>
+      </g>
+
+      <!-- ── Backend ── -->
+      <g class="node" data-name="schema-vis-backend" data-desc="Spring Boot 3.2 + Java 21. Handles auth (JWT), chat sessions, AI orchestration (Gemini → Groq → OpenRouter fallback), and Flyway migrations. HPA scales 1–5 replicas on CPU + memory. Image: ghcr.io/shreyasshelar/schema-vis-backend.">
+        <rect x="660" y="210" width="260" height="100" rx="10" fill="#1a1030" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="790" y="235" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">☕ Backend</text>
+        <rect x="670" y="242" width="110" height="22" rx="5" fill="#110d20" stroke="#a78bfa" stroke-width=".8"/>
+        <text x="725" y="257" text-anchor="middle" fill="#8a8aab" font-size="9">Spring Boot 3.2</text>
+        <rect x="790" y="242" width="120" height="22" rx="5" fill="#110d20" stroke="#a78bfa" stroke-width=".8"/>
+        <text x="850" y="257" text-anchor="middle" fill="#8a8aab" font-size="9">JWT · Security</text>
+        <text x="790" y="295" text-anchor="middle" fill="#4a3a7a" font-size="9">HPA: 1–5 replicas · ClusterIP:8080</text>
+      </g>
+
+      <!-- ── AI Fallback ── -->
+      <g class="node" data-name="AI Provider Chain" data-desc="FallbackAiService tries providers in order: 1) Gemini 2.5 Flash (free), 2) Groq llama-3.3-70b (free tier, fast), 3) OpenRouter llama-3.1-8b (free fallback). Any failure triggers the next provider automatically.">
+        <rect x="660" y="330" width="260" height="110" rx="10" fill="#1a1525" stroke="#c084fc" stroke-width="1.5"/>
+        <text x="790" y="355" text-anchor="middle" fill="#c084fc" font-size="11" font-weight="700">🤖 AI Fallback Chain</text>
+        <rect x="670" y="362" width="72" height="22" rx="5" fill="#130f1f" stroke="#c084fc" stroke-width=".8"/>
+        <text x="706" y="377" text-anchor="middle" fill="#8a8aab" font-size="8">① Gemini</text>
+        <rect x="752" y="362" width="72" height="22" rx="5" fill="#130f1f" stroke="#9ca3af" stroke-width=".8"/>
+        <text x="788" y="377" text-anchor="middle" fill="#8a8aab" font-size="8">② Groq</text>
+        <rect x="834" y="362" width="76" height="22" rx="5" fill="#130f1f" stroke="#9ca3af" stroke-width=".8"/>
+        <text x="872" y="377" text-anchor="middle" fill="#8a8aab" font-size="8">③ OpenRouter</text>
+        <text x="790" y="418" text-anchor="middle" fill="#5a4a7a" font-size="9">Rate limit on any → try next automatically</text>
+        <text x="706" y="432" text-anchor="middle" fill="#c084fc" font-size="8">primary</text>
+      </g>
+
+      <!-- ── PostgreSQL ── -->
+      <g class="node" data-name="schema-vis-postgres" data-desc="PostgreSQL 16 running as a single-replica Deployment with a 5GB PersistentVolumeClaim on local-path storage. Flyway manages schema migrations on startup. Data survives pod restarts via the PVC.">
+        <rect x="430" y="330" width="220" height="110" rx="10" fill="#1a1010" stroke="#fb923c" stroke-width="1.5"/>
+        <text x="540" y="355" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="700">🐘 PostgreSQL 16</text>
+        <rect x="445" y="362" width="90" height="22" rx="5" fill="#150d0d" stroke="#fb923c" stroke-width=".8"/>
+        <text x="490" y="377" text-anchor="middle" fill="#8a8aab" font-size="9">ClusterIP:5432</text>
+        <rect x="545" y="362" width="90" height="22" rx="5" fill="#150d0d" stroke="#fb923c" stroke-width=".8"/>
+        <text x="590" y="377" text-anchor="middle" fill="#8a8aab" font-size="9">PVC 5GB</text>
+        <text x="540" y="418" text-anchor="middle" fill="#5a3020" font-size="9">Flyway migrations · local-path storage</text>
+        <text x="540" y="432" text-anchor="middle" fill="#5a3020" font-size="9">No HPA — stateful single node</text>
+      </g>
+
+      <!-- ── Arrows ── -->
+      <!-- User → CF -->
+      <line x1="140" y1="285" x2="188" y2="285" stroke="#f6821f" stroke-width="1.5" marker-end="url(#arr-o)"/>
+      <text x="164" y="278" text-anchor="middle" fill="#6b4020" font-size="9">HTTPS</text>
+
+      <!-- CF → cloudflared -->
+      <line x1="330" y1="262" x2="658" y2="145" stroke="#f6821f" stroke-width="1.5" stroke-dasharray="4 2" marker-end="url(#arr-o)"/>
+      <text x="490" y="192" fill="#6b4020" font-size="9" transform="rotate(-18,490,192)">tunnel (outbound)</text>
+
+      <!-- cloudflared → frontend -->
+      <line x1="790" y1="180" x2="620" y2="210" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arr-g)"/>
+      <text x="700" y="202" fill="#2a5a3a" font-size="9">HTTP :80</text>
+
+      <!-- frontend → backend -->
+      <line x1="652" y1="260" x2="658" y2="260" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr-p)"/>
+      <text x="655" y="252" fill="#4a3a7a" font-size="9">/api/</text>
+
+      <!-- backend → AI -->
+      <line x1="790" y1="310" x2="790" y2="328" stroke="#c084fc" stroke-width="1.5" marker-end="url(#arr-v)"/>
+
+      <!-- backend → postgres -->
+      <line x1="700" y1="310" x2="620" y2="330" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arr-orange)"/>
+      <text x="655" y="325" fill="#5a3020" font-size="9">JDBC</text>
+
+      <!-- GitHub → ArgoCD (watches repo) -->
+      <line x1="330" y1="80" x2="428" y2="118" stroke="#7c6af7" stroke-width="1.5" stroke-dasharray="4 2" marker-end="url(#arr-p)"/>
+      <text x="370" y="90" fill="#4a3a7a" font-size="9" transform="rotate(18,370,90)">watches</text>
+
+      <!-- GitHub → ghcr (push images) -->
+      <line x1="330" y1="110" x2="428" y2="140" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr-b)"/>
+      <text x="355" y="130" fill="#1e3a6a" font-size="8">push</text>
+
+      <!-- ArgoCD → frontend -->
+      <line x1="540" y1="180" x2="540" y2="208" stroke="#7c6af7" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr-p)"/>
+      <!-- ArgoCD → backend -->
+      <line x1="650" y1="160" x2="730" y2="208" stroke="#7c6af7" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr-p)"/>
+      <!-- ArgoCD → cloudflared -->
+      <line x1="650" y1="130" x2="658" y2="130" stroke="#7c6af7" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr-p)"/>
+
+      <!-- Arrowhead markers -->
+      <defs>
+        <marker id="arr-o" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#f6821f"/></marker>
+        <marker id="arr-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#4ade80"/></marker>
+        <marker id="arr-p" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#7c6af7"/></marker>
+        <marker id="arr-v" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#c084fc"/></marker>
+        <marker id="arr-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#fb923c"/></marker>
+        <marker id="arr-b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/></marker>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="dot" style="background:#f6821f"></div>Cloudflare</div>
+    <div class="legend-item"><div class="dot" style="background:#7c6af7"></div>ArgoCD (GitOps)</div>
+    <div class="legend-item"><div class="dot" style="background:#4ade80"></div>Frontend (nginx)</div>
+    <div class="legend-item"><div class="dot" style="background:#a78bfa"></div>Backend (Spring Boot)</div>
+    <div class="legend-item"><div class="dot" style="background:#c084fc"></div>AI Providers</div>
+    <div class="legend-item"><div class="dot" style="background:#fb923c"></div>PostgreSQL</div>
+  </div>
+</main>
+
+<div class="tooltip" id="tip"></div>
+
+<script>
+  const tip = document.getElementById('tip');
+  document.querySelectorAll('.node').forEach(n => {
+    n.style.cursor = 'pointer';
+    n.addEventListener('mouseenter', e => {
+      tip.innerHTML = `<h4>${n.dataset.name}</h4>${n.dataset.desc}`;
+      tip.classList.add('show');
+    });
+    n.addEventListener('mousemove', e => {
+      const x = e.clientX + 16, y = e.clientY + 12;
+      const r = tip.getBoundingClientRect();
+      tip.style.left = Math.min(x, window.innerWidth - r.width - 8) + 'px';
+      tip.style.top  = Math.min(y, window.innerHeight - r.height - 8) + 'px';
+    });
+    n.addEventListener('mouseleave', () => tip.classList.remove('show'));
+  });
+</script>
+</body>
+</html>

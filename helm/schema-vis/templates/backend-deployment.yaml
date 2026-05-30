@@ -18,6 +18,12 @@ spec:
         # Force pod restart when secret changes
         checksum/secret: {{ include (print $.Template.BasePath "/backend-secret.yaml") . | sha256sum }}
     spec:
+      {{- with .Values.backend.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: backend
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"

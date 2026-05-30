@@ -1,6 +1,7 @@
-# ── Registry ─────────────────────────────────────────────────────
-registry: ghcr.io
-imageOwner: shreyasshelar          # ghcr.io owner (GitHub username / org)
+# ── Secret management ────────────────────────────────────────────
+# false  = ArgoCD mode: secrets pre-created manually on the cluster
+# true   = Helm-managed: secrets created from values below (local/CI use)
+createSecrets: false
 
 # ── Backend ──────────────────────────────────────────────────────
 backend:
@@ -8,6 +9,8 @@ backend:
     repository: ghcr.io/shreyasshelar/schema-vis-backend
     tag: latest
     pullPolicy: Always
+    pullSecrets: 
+      - ghcr-credentials           # populated by deploy workflow for private registry
   replicaCount: 1
   port: 8080
   resources:
@@ -17,18 +20,24 @@ backend:
     limits:
       memory: "1Gi"
       cpu: "1"
-  # Non-secret env vars — secrets injected at deploy time via --set
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
   env:
     SPRING_PROFILES_ACTIVE: prod
     SPRING_DATASOURCE_URL: jdbc:postgresql://schema-vis-postgres:5432/schemavis
     SPRING_DATASOURCE_USERNAME: schemavis
     RATE_LIMIT: "20"
-  # Secret values — override at deploy time (never commit real values here)
+  # Only used when createSecrets: true
   secrets:
     SPRING_DATASOURCE_PASSWORD: ""
     JWT_SECRET: ""
     GEMINI_API_KEY: ""
-  # Liveness / readiness via Spring Actuator
+    GROQ_API_KEY: ""
+    OPENROUTER_API_KEY: ""
   probes:
     liveness:
       path: /actuator/health/liveness
@@ -45,6 +54,8 @@ frontend:
     repository: ghcr.io/shreyasshelar/schema-vis-frontend
     tag: latest
     pullPolicy: Always
+    pullSecrets: 
+      - ghcr-credentials
   replicaCount: 1
   port: 80
   resources:
@@ -54,6 +65,11 @@ frontend:
     limits:
       memory: "128Mi"
       cpu: "200m"
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
 
 # ── PostgreSQL ───────────────────────────────────────────────────
 postgres:
@@ -63,7 +79,7 @@ postgres:
   database: schemavis
   user: schemavis
   storage: 5Gi
-  storageClass: local-path      # k3s default; change for other distros
+  storageClass: local-path      # k3s default; use standard-rwo for GKE
   resources:
     requests:
       memory: "256Mi"
@@ -73,16 +89,13 @@ postgres:
       cpu: "500m"
 
 # ── Cloudflare Tunnel ────────────────────────────────────────────
-# 1. Create a tunnel in Cloudflare Zero Trust → Networks → Tunnels
-# 2. Copy the tunnel token
-# 3. Add a CNAME DNS record:  <hostname>  →  <tunnel-id>.cfargotunnel.com
-# 4. Pass --set cloudflared.tunnelToken=<token>  (or via GitHub secret)
 cloudflared:
   enabled: true
   image: cloudflare/cloudflared:2025.1.0
-  replicaCount: 2              # 2 replicas = HA (Cloudflare load-balances)
-  tunnelToken: ""              # injected at deploy time — NEVER commit
-  hostname: schema-vis.example.com   # override with your subdomain
+  replicaCount: 2
+  tunnelToken: ""              # injected via k8s secret — never commit
+  hostname: schemavis.shreyasshelar.uk
+  imagePullSecrets: []
   resources:
     requests:
       memory: "32Mi"
