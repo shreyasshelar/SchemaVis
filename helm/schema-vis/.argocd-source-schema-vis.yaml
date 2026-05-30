@@ -7,7 +7,7 @@ helm:
     value: "false"
     forcestring: false
   - name: frontend.image.tag
-    value: sha-accb79a
+    value: sha-ccc4db8
     forcestring: true
   - name: image.name
     value: ghcr.io/shreyasshelar/schema-vis-frontend
