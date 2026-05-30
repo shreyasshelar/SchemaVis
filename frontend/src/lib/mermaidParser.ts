@@ -12,7 +12,11 @@ import type { ParsedDiagram, TableDef, ColumnDef, RelationshipDef } from '@/type
 // The parser is intentionally permissive — Gemini output varies slightly.
 
 const ENTITY_RE  = /^\s*(\w+)\s*\{/
-const COLUMN_RE  = /^\s*(\w+)\s+([\w()[\]]+)\s*(PK|FK|UK|)?\s*(?:"([^"]*)")?/i
+// Group 1: type — allows parens/brackets/commas for types like varchar(100), decimal(18,2)
+// Group 2: name — plain identifier
+// Group 3: key annotation (PK / FK / UK / empty)
+// Group 4: optional quoted comment
+const COLUMN_RE  = /^\s*([\w()[\],]+)\s+([\w]+)\s*(PK|FK|UK|)?\s*(?:"([^"]*)")?/i
 const REL_RE     = /^\s*(\w+)\s+([|oO{}[\]]+--[|oO{}[\]]+)\s+(\w+)\s*(?::\s*"?([^"]+)"?)?/
 
 // Cardinality token → human-readable abbreviation kept for edge labels

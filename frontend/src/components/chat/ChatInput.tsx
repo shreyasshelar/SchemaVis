@@ -19,7 +19,8 @@ export function ChatInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { isSending, phase } = useAppStore()
   const chat = useChat()
-  const locked = phase === 'complete'
+  const isComplete = phase === 'complete'
+  const locked = false  // never lock — allow refining after complete
 
   // Auto-resize textarea up to MAX_ROWS
   const resize = useCallback(() => {
@@ -71,8 +72,8 @@ export function ChatInput() {
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder={
-            locked
-              ? 'Schema is complete — start a new session to continue'
+            isComplete
+              ? 'Schema complete — ask to refine, add tables, or change anything…'
               : 'Describe your schema, or ask a question…'
           }
           disabled={locked || isSending}

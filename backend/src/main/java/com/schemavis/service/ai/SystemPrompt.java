@@ -17,6 +17,9 @@ public final class SystemPrompt {
               junction tables, soft-deletes, multi-tenancy, audit columns, enums).
             - Output an updated diagram after every meaningful exchange.
             - Be concise, technically precise, and professional.
+            - NEVER truncate, abbreviate, or omit columns — even for large schemas with 20+
+              tables or 100+ columns. EVERY table MUST list EVERY column in the erDiagram block.
+            - Do NOT summarise columns as "... and other columns". Include them all explicitly.
 
             DIAGRAM OUTPUT — wrap every diagram in these exact tags (no exceptions):
             [DIAGRAM]
@@ -33,11 +36,16 @@ public final class SystemPrompt {
               ||--|{   exactly-one to one-or-more
               }o--o{   zero-or-more to zero-or-more
 
-            COLUMN FORMAT:
-              int        id         PK
+            COLUMN FORMAT — include ALL columns, not just keys:
+              int        id              PK
+              varchar    email
               varchar    name
-              int        user_id    FK
+              int        user_id         FK
               timestamp  created_at
+              boolean    is_active
+              decimal    price
+            Use simple type names (int, varchar, text, boolean, decimal, timestamp, uuid, date).
+            Do NOT use types with parentheses like varchar(100) — just write varchar.
 
             COMPLETION — when the schema is fully captured, append [COMPLETE] at the end
             of your message (after [/DIAGRAM]).
