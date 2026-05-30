@@ -64,8 +64,8 @@ function DocsNav() {
 
         {/* Desktop CTAs */}
         <div className="hidden sm:flex items-center gap-2">
-          <Link to="/login"    className="px-3 py-1.5 text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
-          <Link to="/register" className="px-3 py-1.5 text-xs rounded-lg bg-acc hover:bg-accD text-white font-semibold transition-colors">Get started</Link>
+          <Link to="/login"    className="inline-flex items-center h-8 px-3 text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
+          <Link to="/register" className="inline-flex items-center h-8 px-3 text-xs rounded-lg bg-acc hover:bg-accD text-white font-semibold transition-colors">Get started</Link>
         </div>
 
         {/* Mobile: sign in + hamburger */}
