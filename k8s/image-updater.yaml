@@ -1,0 +1,16 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: schema-vis
+  namespace: argocd
+spec:
+  # Select the ArgoCD Application by name
+  applicationRefs:
+    - namePattern: "schema-vis"
+      # Read image config and write-back config from the Application's
+      # argocd-image-updater.argoproj.io/* annotations (defined in argocd-app.yaml)
+      useAnnotations: true
+
+  # Default write-back method — annotations on the Application override this
+  writeBackConfig:
+    method: git

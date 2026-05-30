@@ -7,28 +7,23 @@ metadata:
     app: schema-vis
   annotations:
     # ── ArgoCD Image Updater ──────────────────────────────────────
-    # Watches ghcr.io for new image tags matching sha-* pattern.
-    # Commits updated tags back to git (full audit trail).
+    # v1.2.1 uses CRD-based selection (k8s/image-updater.yaml).
+    # The ImageUpdater CR uses useAnnotations:true so these are still read.
     argocd-image-updater.argoproj.io/image-list: >-
       backend=ghcr.io/shreyasshelar/schema-vis-backend,
       frontend=ghcr.io/shreyasshelar/schema-vis-frontend
 
-    # Track latest sha-* tag (new tag per commit)
     argocd-image-updater.argoproj.io/backend.update-strategy: name
     argocd-image-updater.argoproj.io/backend.allow-tags: "regexp:^sha-"
     argocd-image-updater.argoproj.io/frontend.update-strategy: name
     argocd-image-updater.argoproj.io/frontend.allow-tags: "regexp:^sha-"
 
-    # Private registry credentials (k8s secret in argocd namespace)
     argocd-image-updater.argoproj.io/backend.pull-secret: pullsecret:argocd/ghcr-credentials
     argocd-image-updater.argoproj.io/frontend.pull-secret: pullsecret:argocd/ghcr-credentials
 
-    # Map image tags to Helm values
     argocd-image-updater.argoproj.io/backend.helm.image-tag: backend.image.tag
     argocd-image-updater.argoproj.io/frontend.helm.image-tag: frontend.image.tag
 
-    # Write new tags back to git (audit trail)
-    # Secret 'argocd-image-updater-secret' in argocd namespace must have git.token=<PAT with repo scope>
     argocd-image-updater.argoproj.io/write-back-method: git
     argocd-image-updater.argoproj.io/git-branch: main
     argocd-image-updater.argoproj.io/git-commit-user: shreyasshelar
