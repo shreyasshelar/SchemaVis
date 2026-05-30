@@ -1,5 +1,6 @@
 import { type ReactNode, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MessageSquareIcon, NetworkIcon } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 
 interface SplitPaneProps {
@@ -8,10 +9,12 @@ interface SplitPaneProps {
 }
 
 // Draggable split pane — chat left, diagram right.
-// Respects `diagramVisible` from store to animate out the right pane.
+// On mobile: tab-based toggle between chat and diagram.
+// On desktop: side-by-side with draggable divider.
 export function SplitPane({ left, right }: SplitPaneProps) {
   const { diagramVisible } = useAppStore()
-  const [leftPct, setLeftPct] = useState(42)   // percent width for chat side
+  const [leftPct, setLeftPct] = useState(42)
+  const [mobileTab, setMobileTab] = useState<'chat' | 'diagram'>('chat')
   const dragging = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -38,49 +41,79 @@ export function SplitPane({ left, right }: SplitPaneProps) {
   }, [])
 
   return (
-    <div ref={containerRef} className="flex flex-1 overflow-hidden">
-      {/* ── Chat panel ────────────────────────────────────────── */}
-      <div
-        className="flex flex-col overflow-hidden"
-        style={{ width: diagramVisible ? `${leftPct}%` : '100%', transition: 'width 0.25s ease' }}
-      >
-        {left}
+    <>
+      {/* ── Mobile layout: tab switcher ──────────────────────── */}
+      <div className="md:hidden flex flex-col flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden">
+          {mobileTab === 'chat' ? left : right}
+        </div>
+        {/* Bottom tab bar */}
+        <div className="flex-none flex border-t border-brd bg-panel/90 backdrop-blur-md">
+          <button
+            onClick={() => setMobileTab('chat')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-medium transition-colors ${
+              mobileTab === 'chat' ? 'text-acc border-t-2 border-acc -mt-px' : 'text-sec'
+            }`}
+          >
+            <MessageSquareIcon size={14} />
+            Chat
+          </button>
+          <button
+            onClick={() => setMobileTab('diagram')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-medium transition-colors ${
+              mobileTab === 'diagram' ? 'text-acc border-t-2 border-acc -mt-px' : 'text-sec'
+            }`}
+          >
+            <NetworkIcon size={14} />
+            Diagram
+          </button>
+        </div>
       </div>
 
-      {/* ── Resize handle ────────────────────────────────────── */}
-      <AnimatePresence>
-        {diagramVisible && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onMouseDown={onMouseDown}
-            className="w-px bg-brd hover:bg-acc/60 cursor-col-resize transition-colors relative group flex-none"
-          >
-            {/* Drag affordance dots */}
-            <div className="absolute inset-y-0 -left-1.5 -right-1.5 flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <span key={i} className="w-1 h-1 rounded-full bg-acc/60" />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Desktop layout: draggable split ──────────────────── */}
+      <div ref={containerRef} className="hidden md:flex flex-1 overflow-hidden">
+        {/* Chat panel */}
+        <div
+          className="flex flex-col overflow-hidden"
+          style={{ width: diagramVisible ? `${leftPct}%` : '100%', transition: 'width 0.25s ease' }}
+        >
+          {left}
+        </div>
 
-      {/* ── Diagram panel ────────────────────────────────────── */}
-      <AnimatePresence>
-        {diagramVisible && (
-          <motion.div
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 24 }}
-            transition={{ duration: 0.22 }}
-            className="flex flex-col overflow-hidden flex-1"
-          >
-            {right}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        {/* Resize handle */}
+        <AnimatePresence>
+          {diagramVisible && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onMouseDown={onMouseDown}
+              className="w-px bg-brd hover:bg-acc/60 cursor-col-resize transition-colors relative group flex-none"
+            >
+              <div className="absolute inset-y-0 -left-1.5 -right-1.5 flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span key={i} className="w-1 h-1 rounded-full bg-acc/60" />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Diagram panel */}
+        <AnimatePresence>
+          {diagramVisible && (
+            <motion.div
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 24 }}
+              transition={{ duration: 0.22 }}
+              className="flex flex-col overflow-hidden flex-1"
+            >
+              {right}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   )
 }

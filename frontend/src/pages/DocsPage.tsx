@@ -1,26 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   DatabaseIcon, SparklesIcon, MessageSquareIcon, ZapIcon,
   ShieldCheckIcon, LayersIcon, ServerIcon, GitBranchIcon,
   ArrowRightIcon, CheckIcon, CodeIcon, RefreshCwIcon,
   RocketIcon, CloudIcon, BookOpenIcon, KeyIcon,
-  RepeatIcon, ExternalLinkIcon, ChevronDownIcon,
+  RepeatIcon, ExternalLinkIcon, ChevronDownIcon, MenuIcon, XIcon,
 } from 'lucide-react'
 
 // ─────────────────────────────────────────────────────────────────
-// Reusable fade-up wrapper
+// Reusable fade-up wrapper — uses animate (not whileInView) so content
+// is always visible without depending on IntersectionObserver
 // ─────────────────────────────────────────────────────────────────
 function FadeUp({
   children, delay = 0, className = '',
 }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
     >
       {children}
@@ -31,10 +31,21 @@ function FadeUp({
 // ─────────────────────────────────────────────────────────────────
 // Sticky nav
 // ─────────────────────────────────────────────────────────────────
+const NAV_LINKS = [
+  { href: '#how-it-works', label: 'How it works' },
+  { href: '#features',     label: 'Features' },
+  { href: '#stack',        label: 'Tech stack' },
+  { href: '#api',          label: 'API' },
+  { href: '#artifacts',    label: 'Artifacts' },
+]
+
 function DocsNav() {
+  const [open, setOpen] = useState(false)
+
   return (
-    <nav className="sticky top-0 z-50 bg-app/80 backdrop-blur-xl border-b border-brd">
-      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+    <nav className="sticky top-0 z-50 bg-app/95 backdrop-blur-xl border-b border-brd">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        {/* Logo */}
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-acc/20 border border-acc/40 flex items-center justify-center">
             <DatabaseIcon size={14} className="text-acc" />
@@ -44,29 +55,63 @@ function DocsNav() {
           </span>
         </div>
 
-        <div className="hidden sm:flex items-center gap-6 text-xs text-sec">
-          <a href="#how-it-works" className="hover:text-hi transition-colors">How it works</a>
-          <a href="#features"     className="hover:text-hi transition-colors">Features</a>
-          <a href="#stack"        className="hover:text-hi transition-colors">Tech stack</a>
-          <a href="#api"          className="hover:text-hi transition-colors">API</a>
-          <a href="#artifacts"    className="hover:text-hi transition-colors">Artifacts</a>
+        {/* Desktop links */}
+        <div className="hidden md:flex items-center gap-6 text-xs text-sec">
+          {NAV_LINKS.map(l => (
+            <a key={l.href} href={l.href} className="hover:text-hi transition-colors">{l.label}</a>
+          ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            to="/login"
-            className="px-3 py-1.5 text-xs text-sec hover:text-hi transition-colors"
+        {/* Desktop CTAs */}
+        <div className="hidden sm:flex items-center gap-2">
+          <Link to="/login"    className="px-3 py-1.5 text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
+          <Link to="/register" className="px-3 py-1.5 text-xs rounded-lg bg-acc hover:bg-accD text-white font-semibold transition-colors">Get started</Link>
+        </div>
+
+        {/* Mobile: sign in + hamburger */}
+        <div className="flex sm:hidden items-center gap-2">
+          <Link to="/login" className="text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
+          <button
+            onClick={() => setOpen(o => !o)}
+            className="w-8 h-8 rounded-lg bg-surf border border-brd flex items-center justify-center text-sec hover:text-hi transition-colors"
+            aria-label="Toggle menu"
           >
-            Sign in
-          </Link>
-          <Link
-            to="/register"
-            className="px-3 py-1.5 text-xs rounded-lg bg-acc hover:bg-accD text-white font-semibold transition-colors"
-          >
-            Get started
-          </Link>
+            {open ? <XIcon size={15} /> : <MenuIcon size={15} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile dropdown */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden border-t border-brd bg-panel overflow-hidden"
+          >
+            <div className="flex flex-col px-4 py-3 gap-1">
+              {NAV_LINKS.map(l => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="py-2.5 text-sm text-sec hover:text-hi border-b border-brd/50 last:border-0 transition-colors"
+                >
+                  {l.label}
+                </a>
+              ))}
+              <Link
+                to="/register"
+                onClick={() => setOpen(false)}
+                className="mt-2 py-2.5 text-sm text-center rounded-lg bg-acc text-white font-semibold hover:bg-accD transition-colors"
+              >
+                Get started free
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   )
 }
@@ -76,7 +121,7 @@ function DocsNav() {
 // ─────────────────────────────────────────────────────────────────
 function Hero() {
   return (
-    <section className="relative min-h-[92vh] flex flex-col items-center justify-center px-6 pt-16 pb-24 overflow-hidden">
+    <section className="relative flex flex-col items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
       {/* Background glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full bg-acc/8 blur-3xl pointer-events-none" />
 
@@ -101,7 +146,7 @@ function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-[2.6rem] sm:text-[3.4rem] font-extrabold leading-[1.1] tracking-tight"
+          className="text-[1.75rem] sm:text-[2.6rem] lg:text-[3.4rem] font-extrabold leading-[1.1] tracking-tight"
         >
           Design databases{' '}
           <span className="bg-gradient-to-r from-acc via-purple-400 to-blue-400 bg-clip-text text-transparent">
@@ -164,15 +209,6 @@ function Hero() {
         </motion.div>
       </div>
 
-      {/* Scroll cue */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-muted text-2xs"
-      >
-        <ChevronDownIcon size={16} className="animate-bounce" />
-      </motion.div>
     </section>
   )
 }
@@ -206,7 +242,7 @@ const STEPS = [
 
 function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-24 px-6">
+    <section id="how-it-works" className="py-16 px-6">
       <div className="max-w-5xl mx-auto">
         <FadeUp className="text-center mb-16">
           <span className="text-xs text-acc font-semibold uppercase tracking-widest">How it works</span>
@@ -244,15 +280,6 @@ function HowItWorks() {
           ))}
         </div>
 
-        {/* Connecting arrow between steps (md+) */}
-        <FadeUp delay={0.4} className="hidden md:flex justify-center gap-[calc(33.33%-64px)] -mt-2 px-16 pointer-events-none">
-          {[0, 1].map((i) => (
-            <div key={i} className="flex items-center gap-1 text-acc/40">
-              <div className="h-px w-16 bg-gradient-to-r from-acc/20 to-acc/40" />
-              <ArrowRightIcon size={12} />
-            </div>
-          ))}
-        </FadeUp>
       </div>
     </section>
   )
@@ -312,25 +339,27 @@ function Demo() {
               <span className="w-2.5 h-2.5 rounded-full bg-err/60" />
               <span className="w-2.5 h-2.5 rounded-full bg-warn/60" />
               <span className="w-2.5 h-2.5 rounded-full bg-ok/60" />
-              <span className="ml-4 text-2xs text-muted">SchemaVis — E-commerce schema</span>
+              <span className="ml-3 text-2xs text-muted truncate">SchemaVis — E-commerce schema</span>
             </div>
 
-            {/* Split pane */}
-            <div className="flex h-[440px]">
-              {/* ── Chat panel ── */}
-              <div className="w-[45%] flex flex-col border-r border-brd bg-panel">
-                <div className="flex-1 overflow-hidden p-4 flex flex-col gap-3">
+            {/* ── Responsive split pane ──
+                Mobile  : chat stacked above diagram grid (no absolute positions)
+                md+     : side-by-side with absolute-positioned ER nodes + SVG lines ── */}
+            <div className="flex flex-col md:flex-row md:h-[440px]">
+
+              {/* Chat panel — full width on mobile, 45% on md+ */}
+              <div className="w-full md:w-[45%] flex flex-col border-b md:border-b-0 md:border-r border-brd bg-panel">
+                <div className="flex-1 overflow-hidden p-4 flex flex-col gap-3 max-h-64 md:max-h-none">
                   {CHAT_MESSAGES.map((msg, i) => (
                     <motion.div
                       key={i}
                       initial={{ opacity: 0, y: 8 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: i * 0.12, duration: 0.35 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + i * 0.12, duration: 0.35 }}
                       className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
+                        className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
                           msg.role === 'user'
                             ? 'bg-uBg text-hi rounded-br-sm'
                             : 'bg-aiBg border border-brd text-sec rounded-bl-sm'
@@ -342,9 +371,8 @@ function Demo() {
                   ))}
                   <motion.div
                     initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.8 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.1 }}
                     className="flex items-center gap-1.5 px-3 py-2 self-start"
                   >
                     {[0, 1, 2].map((d) => (
@@ -356,7 +384,6 @@ function Demo() {
                     ))}
                   </motion.div>
                 </div>
-                {/* Input bar */}
                 <div className="p-3 border-t border-brd">
                   <div className="flex items-center gap-2 bg-input border border-brd rounded-lg px-3 py-2">
                     <span className="flex-1 text-xs text-muted">Reply to SchemaVis…</span>
@@ -365,112 +392,78 @@ function Demo() {
                 </div>
               </div>
 
-              {/* ── Diagram panel ── */}
+              {/* ── Mobile diagram: 2×2 grid of table cards, no absolute positioning ── */}
               <div
-                className="flex-1 relative overflow-hidden"
+                className="md:hidden grid grid-cols-2 gap-3 p-4"
+                style={{ backgroundColor: '#0D0D18' }}
+              >
+                {/* Schema complete badge */}
+                <div className="col-span-2 flex items-center justify-center gap-1.5 py-1">
+                  <CheckIcon size={10} className="text-ok" />
+                  <span className="text-2xs text-ok font-medium">Schema complete — 4 tables</span>
+                </div>
+                {[
+                  { name: 'USERS',       cols: [{ n: 'id', t: 'uuid', pk: true }, { n: 'email', t: 'varchar' }, { n: 'name', t: 'varchar' }] },
+                  { name: 'PRODUCTS',    cols: [{ n: 'id', t: 'uuid', pk: true }, { n: 'name', t: 'varchar' }, { n: 'price', t: 'numeric' }] },
+                  { name: 'ORDERS',      cols: [{ n: 'id', t: 'uuid', pk: true }, { n: 'user_id', t: 'uuid', fk: true }, { n: 'total', t: 'numeric' }] },
+                  { name: 'ORDER_ITEMS', cols: [{ n: 'id', t: 'uuid', pk: true }, { n: 'order_id', t: 'uuid', fk: true }, { n: 'product_id', t: 'uuid', fk: true }] },
+                ].map((table, i) => (
+                  <motion.div
+                    key={table.name}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + i * 0.1, duration: 0.35 }}
+                  >
+                    <TableCard name={table.name} cols={table.cols} />
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* ── Desktop diagram: absolute-positioned ER nodes + SVG lines ── */}
+              <div
+                className="hidden md:block flex-1 relative overflow-hidden"
                 style={{
                   backgroundColor: '#0D0D18',
                   backgroundImage: 'radial-gradient(circle, #252538 1px, transparent 1px)',
                   backgroundSize: '24px 24px',
                 }}
               >
-                {/* Table nodes */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.3, duration: 0.4 }}
-                  className="absolute top-6 left-6"
-                >
-                  <TableCard name="USERS" cols={[
-                    { n: 'id', t: 'uuid', pk: true },
-                    { n: 'email', t: 'varchar' },
-                    { n: 'name', t: 'varchar' },
-                    { n: 'created_at', t: 'timestamp' },
-                  ]} />
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3, duration: 0.4 }} className="absolute top-6 left-6">
+                  <TableCard name="USERS" cols={[{ n: 'id', t: 'uuid', pk: true }, { n: 'email', t: 'varchar' }, { n: 'name', t: 'varchar' }, { n: 'created_at', t: 'timestamp' }]} />
+                </motion.div>
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.45, duration: 0.4 }} className="absolute top-6 right-6">
+                  <TableCard name="PRODUCTS" cols={[{ n: 'id', t: 'uuid', pk: true }, { n: 'name', t: 'varchar' }, { n: 'price', t: 'numeric' }, { n: 'stock', t: 'int' }]} />
+                </motion.div>
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6, duration: 0.4 }} className="absolute bottom-16 left-[25%]">
+                  <TableCard name="ORDERS" cols={[{ n: 'id', t: 'uuid', pk: true }, { n: 'user_id', t: 'uuid', fk: true }, { n: 'total', t: 'numeric' }, { n: 'status', t: 'varchar' }]} />
+                </motion.div>
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.75, duration: 0.4 }} className="absolute bottom-16 right-[10%]">
+                  <TableCard name="ORDER_ITEMS" cols={[{ n: 'id', t: 'uuid', pk: true }, { n: 'order_id', t: 'uuid', fk: true }, { n: 'product_id', t: 'uuid', fk: true }, { n: 'qty', t: 'int' }]} />
                 </motion.div>
 
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.45, duration: 0.4 }}
-                  className="absolute top-6 right-6"
-                >
-                  <TableCard name="PRODUCTS" cols={[
-                    { n: 'id', t: 'uuid', pk: true },
-                    { n: 'name', t: 'varchar' },
-                    { n: 'price', t: 'numeric' },
-                    { n: 'stock', t: 'int' },
-                  ]} />
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.6, duration: 0.4 }}
-                  className="absolute bottom-16 left-[25%]"
-                >
-                  <TableCard name="ORDERS" cols={[
-                    { n: 'id', t: 'uuid', pk: true },
-                    { n: 'user_id', t: 'uuid', fk: true },
-                    { n: 'total', t: 'numeric' },
-                    { n: 'status', t: 'varchar' },
-                  ]} />
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.75, duration: 0.4 }}
-                  className="absolute bottom-16 right-[10%]"
-                >
-                  <TableCard name="ORDER_ITEMS" cols={[
-                    { n: 'id', t: 'uuid', pk: true },
-                    { n: 'order_id', t: 'uuid', fk: true },
-                    { n: 'product_id', t: 'uuid', fk: true },
-                    { n: 'qty', t: 'int' },
-                  ]} />
-                </motion.div>
-
-                {/* SVG relationship lines */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
                   <defs>
                     <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
                       <path d="M0,0 L0,6 L6,3 z" fill="#303048" />
                     </marker>
                   </defs>
-                  {/* USERS → ORDERS */}
                   <line x1="170" y1="120" x2="200" y2="310" stroke="#303048" strokeWidth="1.5" markerEnd="url(#arr)" strokeDasharray="4 3" />
-                  {/* PRODUCTS → ORDER_ITEMS */}
                   <line x1="320" y1="120" x2="330" y2="310" stroke="#303048" strokeWidth="1.5" markerEnd="url(#arr)" strokeDasharray="4 3" />
-                  {/* ORDERS → ORDER_ITEMS */}
                   <line x1="280" y1="350" x2="320" y2="350" stroke="#303048" strokeWidth="1.5" markerEnd="url(#arr)" strokeDasharray="4 3" />
-                  {/* labels */}
                   <text x="174" y="225" fill="#48486A" fontSize="9" fontFamily="monospace">1..∞</text>
                   <text x="324" y="225" fill="#48486A" fontSize="9" fontFamily="monospace">1..∞</text>
                   <text x="292" y="344" fill="#48486A" fontSize="9" fontFamily="monospace">1..∞</text>
                 </svg>
 
-                {/* Schema complete badge */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 1.1 }}
-                  className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-ok/10 border border-ok/30"
-                >
+                <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1.1 }} className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-ok/10 border border-ok/30">
                   <CheckIcon size={10} className="text-ok" />
                   <span className="text-2xs text-ok font-medium">Schema complete</span>
                 </motion.div>
-
-                {/* Re-layout button */}
                 <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surf/80 border border-brd text-2xs text-sec pointer-events-none">
                   <RefreshCwIcon size={10} /> Re-layout
                 </div>
               </div>
+
             </div>
           </div>
         </FadeUp>
@@ -527,7 +520,7 @@ const FEATURES = [
 
 function Features() {
   return (
-    <section id="features" className="py-24 px-6 bg-panel/40">
+    <section id="features" className="py-16 px-6 bg-panel/40">
       <div className="max-w-6xl mx-auto">
         <FadeUp className="text-center mb-16">
           <span className="text-xs text-acc font-semibold uppercase tracking-widest">Features</span>
@@ -617,7 +610,7 @@ const STACK = [
 
 function TechStack() {
   return (
-    <section id="stack" className="py-24 px-6">
+    <section id="stack" className="py-16 px-6">
       <div className="max-w-6xl mx-auto">
         <FadeUp className="text-center mb-16">
           <span className="text-xs text-acc font-semibold uppercase tracking-widest">Tech stack</span>
@@ -689,7 +682,7 @@ function Pipeline() {
   }
 
   return (
-    <section className="py-24 px-6 bg-panel/40">
+    <section className="py-16 px-6 bg-panel/40">
       <div className="max-w-3xl mx-auto">
         <FadeUp className="text-center mb-12">
           <span className="text-xs text-acc font-semibold uppercase tracking-widest">CI / CD</span>
@@ -835,7 +828,7 @@ function APISection() {
   const [open, setOpen] = useState<string | null>(null)
 
   return (
-    <section id="api" className="py-24 px-6">
+    <section id="api" className="py-16 px-6">
       <div className="max-w-4xl mx-auto">
         <FadeUp className="text-center mb-12">
           <span className="text-xs text-acc font-semibold uppercase tracking-widest">API reference</span>
@@ -938,7 +931,7 @@ const ARTIFACTS = [
 
 function Artifacts() {
   return (
-    <section id="artifacts" className="py-24 px-6 bg-panel/40">
+    <section id="artifacts" className="py-16 px-6 bg-panel/40">
       <div className="max-w-5xl mx-auto">
         <FadeUp className="text-center mb-14">
           <span className="text-xs text-acc font-semibold uppercase tracking-widest">Interactive artifacts</span>
@@ -986,7 +979,7 @@ function Artifacts() {
 // ─────────────────────────────────────────────────────────────────
 function CTA() {
   return (
-    <section className="py-28 px-6">
+    <section className="py-16 px-6">
       <div className="max-w-2xl mx-auto text-center">
         <FadeUp>
           <div className="relative rounded-3xl bg-panel border border-brd p-12 overflow-hidden">
@@ -1072,9 +1065,29 @@ function Footer() {
 // Page root
 // ─────────────────────────────────────────────────────────────────
 export default function DocsPage() {
+  // Override the app-level overflow:hidden so the window itself scrolls.
+  // whileInView uses the window viewport — it won't fire inside a div scroller.
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    const root = document.getElementById('root')
+    const prev = {
+      htmlH: html.style.height, htmlO: html.style.overflow,
+      bodyH: body.style.height, bodyO: body.style.overflow,
+      rootH: root?.style.height, rootO: root?.style.overflow,
+    }
+    html.style.height = 'auto'; html.style.overflow = 'auto'
+    body.style.height = 'auto'; body.style.overflow = 'auto'
+    if (root) { root.style.height = 'auto'; root.style.overflow = 'auto' }
+    return () => {
+      html.style.height = prev.htmlH; html.style.overflow = prev.htmlO
+      body.style.height = prev.bodyH; body.style.overflow = prev.bodyO
+      if (root) { root.style.height = prev.rootH!; root.style.overflow = prev.rootO! }
+    }
+  }, [])
+
   return (
-    // Scrollable container that overrides the app-level overflow:hidden
-    <div className="fixed inset-0 overflow-y-auto bg-app text-hi" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="min-h-screen bg-app text-hi">
       <DocsNav />
       <Hero />
       <HowItWorks />

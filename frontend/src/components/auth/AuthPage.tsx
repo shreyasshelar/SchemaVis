@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { DatabaseIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
+import { DatabaseIcon, EyeIcon, EyeOffIcon, BookOpenIcon } from 'lucide-react'
 import { useLogin } from '@/hooks/useAuth'
 import { useRegister } from '@/hooks/useAuth'
 
@@ -141,7 +141,24 @@ function AuthShell({ title, sub, children }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-base px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-base px-4">
+      {/* Top nav bar */}
+      <div className="fixed top-0 left-0 right-0 flex items-center justify-between px-6 h-12 border-b border-brd bg-panel/80 backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-acc/20 border border-acc/40 flex items-center justify-center">
+            <DatabaseIcon size={12} className="text-acc" />
+          </div>
+          <span className="font-bold text-sm text-hi">Schema<span className="text-acc">Vis</span></span>
+        </div>
+        <Link
+          to="/docs"
+          className="flex items-center gap-1.5 text-xs text-sec hover:text-hi transition-colors"
+        >
+          <BookOpenIcon size={13} />
+          Docs
+        </Link>
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

@@ -16,7 +16,12 @@ const BackgroundScene = lazy(() =>
 
 // ── Main workspace (requires auth) ───────────────────────────────
 function Workspace() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  // Default to collapsed on mobile (< 768px)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.innerWidth < 768
+  )
+
+  const toggleSidebar = () => setSidebarCollapsed((c) => !c)
 
   return (
     <div className="flex flex-col h-full">
@@ -24,13 +29,13 @@ function Workspace() {
         <BackgroundScene />
       </Suspense>
 
-      <Header />
+      <Header onMenuClick={toggleSidebar} />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Projects sidebar */}
         <ProjectsSidebar
           collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((c) => !c)}
+          onToggle={toggleSidebar}
         />
 
         {/* Chat + Diagram split pane */}

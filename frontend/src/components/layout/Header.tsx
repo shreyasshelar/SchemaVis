@@ -6,18 +6,33 @@ import { useLogout } from '@/hooks/useAuth'
 import { IconButton } from '@/components/ui/IconButton'
 import {
   LayoutPanelLeftIcon, CheckCircleIcon, DatabaseIcon,
-  LogOutIcon, UserCircleIcon, BookOpenIcon,
+  LogOutIcon, UserCircleIcon, BookOpenIcon, MenuIcon,
 } from 'lucide-react'
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const { phase, diagramVisible, toggleDiagram } = useAppStore()
   const { user } = useAuthStore()
   const logout = useLogout()
 
   return (
-    <header className="flex-none h-12 flex items-center justify-between px-4 border-b border-brd bg-panel/90 backdrop-blur-md z-10">
+    <header className="flex-none h-12 flex items-center gap-2 px-3 sm:px-4 border-b border-brd bg-panel/90 backdrop-blur-md z-10">
+      {/* ── Mobile hamburger ──────────────────────────────────── */}
+      {onMenuClick && (
+        <button
+          onClick={onMenuClick}
+          className="md:hidden p-1.5 rounded-lg text-sec hover:text-hi hover:bg-surf transition-colors flex-none"
+          aria-label="Toggle projects sidebar"
+        >
+          <MenuIcon size={16} />
+        </button>
+      )}
+
       {/* ── Logo ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2 flex-none">
         <motion.div
           initial={{ rotate: -10, scale: 0.9 }}
           animate={{ rotate: 0,   scale: 1 }}
@@ -30,8 +45,8 @@ export function Header() {
         </span>
       </div>
 
-      {/* ── Status pill ──────────────────────────────────────── */}
-      <div className="absolute left-1/2 -translate-x-1/2">
+      {/* ── Status pill — grows to fill center ───────────────── */}
+      <div className="flex-1 flex justify-center">
         {phase === 'complete' && (
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
@@ -45,13 +60,13 @@ export function Header() {
       </div>
 
       {/* ── Right actions ─────────────────────────────────────── */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-none">
         <Link
           to="/docs"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sec hover:text-hi text-xs transition-colors"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sec hover:text-hi text-xs transition-colors"
         >
           <BookOpenIcon size={13} />
-          <span className="hidden sm:block">Docs</span>
+          <span>Docs</span>
         </Link>
 
         <IconButton
@@ -59,14 +74,14 @@ export function Header() {
           label={diagramVisible ? 'Hide diagram' : 'Show diagram'}
           tooltipSide="bottom"
           onClick={toggleDiagram}
-          className={diagramVisible ? 'text-acc' : ''}
+          className={`hidden md:flex ${diagramVisible ? 'text-acc' : ''}`}
         />
 
         {user && (
-          <div className="flex items-center gap-2 ml-2 pl-2 border-l border-brd">
-            <div className="flex items-center gap-1.5 text-sec">
+          <div className="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2 pl-1 sm:pl-2 border-l border-brd">
+            <div className="hidden sm:flex items-center gap-1.5 text-sec">
               <UserCircleIcon size={14} />
-              <span className="text-xs hidden sm:block max-w-[100px] truncate">
+              <span className="text-xs max-w-[80px] truncate">
                 {user.displayName}
               </span>
             </div>

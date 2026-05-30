@@ -46,11 +46,23 @@ export function ProjectsSidebar({ collapsed, onToggle }: Props) {
   }
 
   return (
+    <>
+      {/* Mobile backdrop */}
+      <div
+        className={`md:hidden fixed inset-0 bg-black/50 z-40 transition-opacity ${
+          collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+        onClick={onToggle}
+      />
+
     <div
       className={`
-        flex-none flex flex-col border-r border-brd bg-panel/60 backdrop-blur-sm
+        flex-none flex flex-col border-r border-brd bg-panel/95 backdrop-blur-sm
         transition-all duration-300 overflow-hidden
-        ${collapsed ? 'w-12' : 'w-56'}
+        fixed md:relative inset-y-0 left-0 z-50 md:z-auto h-full
+        ${collapsed
+          ? '-translate-x-full md:translate-x-0 w-56 md:w-12'
+          : 'translate-x-0 w-56'}
       `}
     >
       {/* Header */}
@@ -181,5 +193,6 @@ export function ProjectsSidebar({ collapsed, onToggle }: Props) {
         )}
       </div>
     </div>
+    </>
   )
 }
