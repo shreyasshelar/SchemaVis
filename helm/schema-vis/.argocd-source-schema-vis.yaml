@@ -1,7 +1,7 @@
 helm:
   parameters:
   - name: backend.image.tag
-    value: sha-accb79a
+    value: sha-ccc4db8
     forcestring: true
   - name: createSecrets
     value: "false"
