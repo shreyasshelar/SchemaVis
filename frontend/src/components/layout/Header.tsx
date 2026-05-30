@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { useLogout } from '@/hooks/useAuth'
 import { IconButton } from '@/components/ui/IconButton'
 import {
   LayoutPanelLeftIcon, CheckCircleIcon, DatabaseIcon,
-  LogOutIcon, UserCircleIcon,
+  LogOutIcon, UserCircleIcon, BookOpenIcon,
 } from 'lucide-react'
 
 export function Header() {
@@ -45,6 +46,14 @@ export function Header() {
 
       {/* ── Right actions ─────────────────────────────────────── */}
       <div className="flex items-center gap-1">
+        <Link
+          to="/docs"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sec hover:text-hi text-xs transition-colors"
+        >
+          <BookOpenIcon size={13} />
+          <span className="hidden sm:block">Docs</span>
+        </Link>
+
         <IconButton
           icon={<LayoutPanelLeftIcon size={15} />}
           label={diagramVisible ? 'Hide diagram' : 'Show diagram'}

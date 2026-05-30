@@ -7,6 +7,7 @@ import { DiagramPanel } from '@/components/diagram/DiagramPanel'
 import { ProjectsSidebar } from '@/components/projects/ProjectsSidebar'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
 import { LoginPage, RegisterPage } from '@/components/auth/AuthPage'
+import DocsPage from '@/pages/DocsPage'
 
 // 3D background — lazy loaded, zero impact on initial bundle
 const BackgroundScene = lazy(() =>
@@ -48,6 +49,7 @@ export default function App() {
     <Routes>
       <Route path="/login"    element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/docs"     element={<DocsPage />} />
 
       {/* All other routes require authentication */}
       <Route element={<ProtectedRoute />}>

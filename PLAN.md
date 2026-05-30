@@ -1,319 +1,173 @@
-# SchemaVis — Production Architecture Plan
+# SchemaVis — Architecture & Design Reference
 
-> Read this before touching any code. Every technology here was chosen for a specific reason. If you want to change the stack, change this document first.
+> Current state of the system. Read this before making architectural changes.
 
 ---
 
-## What We Are Building
+## What It Is
 
-An AI-powered database schema visualiser. A user pastes DDL or describes their database in plain English. The AI asks clarifying questions until it has the complete picture, then renders a live, interactive ER diagram. Built SaaS-ready from day one: persistent sessions, clean API boundaries, and a frontend that can grow to support auth, teams, and billing without rewrites.
+An AI-powered database schema designer. Users chat in plain English (or paste DDL), the AI asks clarifying questions, and a live interactive ER diagram builds in real time. Full SaaS: auth, persistent sessions, project history, production k8s deployment.
 
 ---
 
 ## Stack Decisions
 
-### Backend — Spring Boot 3.2 + Java 21
+### Backend — Java 21 + Spring Boot 3.2
 
 | Technology | Why |
 |---|---|
-| **Spring Boot 3.2** | Industry standard for Java REST APIs. First-class Docker, Actuator, and cloud-native support out of the box. |
-| **Java 21** | Virtual threads (Project Loom) — handles hundreds of concurrent AI calls without thread-pool tuning. |
-| **Spring Data JPA** | Persistent sessions survive restarts. When we add users and billing, the data is already in a real DB. In-memory maps are prototypes. |
-| **H2 (dev) / PostgreSQL (prod)** | H2 for zero-setup local dev; swap one property for prod. Nothing changes in code. |
-| **Flyway** | Every schema change is a versioned migration file. The DB and the code evolve together; no manual `ALTER TABLE` surprises. |
-| **Spring Actuator** | `/actuator/health` and `/actuator/metrics` are required by every cloud platform and load balancer. Add them once, benefit forever. |
-| **Springdoc OpenAPI** | Auto-generates `/swagger-ui.html` and `/v3/api-docs` from annotations. Free API documentation that stays in sync. |
-| **Bucket4j** | Token-bucket rate limiting per IP and per session. Prevents a single user from hammering the Gemini API. Essential before any public launch. |
-| **Gemini 2.0 Flash** | Free tier: 15 RPM / 1M tokens per day. Structured output capability. Swap to paid model with one property change. |
+| **Java 21** | Virtual threads (Project Loom) — hundreds of concurrent AI calls without thread-pool tuning |
+| **Spring Boot 3.2** | Industry standard, Actuator health probes for k8s, Flyway auto-migration, strong ecosystem |
+| **Spring Security + JWT** | Stateless, HMAC-SHA256, 30-day tokens. BCrypt for passwords. No session state. |
+| **PostgreSQL 16** | Users, sessions, messages persist across restarts. JPA with Flyway migrations. |
+| **Flyway** | V1__init.sql (sessions/messages), V2__auth.sql (users). Same DDL in dev and prod. |
+| **Bucket4j** | Token-bucket rate limiting per IP. Currently in-process HashMap; swap to Redis for multi-replica. |
+| **Springdoc OpenAPI** | Auto-generated Swagger UI at `/swagger-ui.html`. Zero maintenance. |
 
-### Frontend — React 18 + TypeScript + Vite
+### AI Layer — Fallback Chain
+
+```
+Request → FallbackAiService
+            ├─ @Order(1) GeminiService       → Gemini 2.5 Flash (REST, different payload format)
+            ├─ @Order(2) GroqProvider         → Groq Llama 3.3-70b (OpenAI-compatible)
+            └─ @Order(3) OpenRouterProvider   → OpenRouter Llama free (OpenAI-compatible)
+```
+
+- `AiProvider` interface: `getName()` + `generateReply(List<Message>)`
+- `OpenAiCompatProvider`: abstract base for Groq + OpenRouter (same `/chat/completions` format)
+- `SystemPrompt.TEXT`: single source of truth for the schema design system prompt
+- `FallbackAiService`: iterates `List<AiProvider>` (Spring auto-collects by `@Order`), catches any `RuntimeException`, tries next. Throws `AppException.aiUnavailable()` only if all fail.
+- All API keys injected from env vars / k8s secrets. Empty string defaults mean provider is skipped gracefully if key missing.
+
+### Frontend — React 19 + TypeScript + Vite 8
 
 | Technology | Why |
 |---|---|
-| **React 18 + TypeScript** | Component model gives us reusable `<ChatPanel>`, `<DiagramPanel>`, `<ERNode>`. TypeScript catches API contract mismatches at compile time, not at 2am in prod. |
-| **Vite** | 10–50× faster dev server than CRA/Webpack. HMR is instant. Production builds are tree-shaken and split by route. No configuration ceremony. |
-| **Tailwind CSS v3** | Utility-first. Zero class naming overhead. The `purge` step means CSS bundle stays tiny even with thousands of utility classes. Design tokens live in `tailwind.config.ts`, not scattered across files. |
-| **Framer Motion v11** | Spring-physics animations. This is why Apple's interfaces feel alive — not CSS tweens but physical springs. `layoutId` gives us shared element transitions (diagram card ↔ full view). `AnimatePresence` handles message enter/exit. |
-| **React Flow v12 (@xyflow/react)** | Purpose-built for node-edge diagrams. Zoom, pan, minimap, custom nodes, custom edges — all production-grade. Used by Stripe, Datadog, and GitHub Copilot's graph UI. We render the ER diagram here, not with Mermaid SVG. |
-| **Dagre layout** | Automatic node placement. Without this, all ER nodes stack at (0,0). Dagre runs a topological sort and places nodes sensibly. Called each time the diagram updates. |
-| **TanStack Query v5** | Server state: caching, background refetch, loading/error states, optimistic updates. Prevents us from writing `useEffect` + `useState` + manual error handling 15 times. |
-| **Zustand v4** | Minimal global state (current session ID, sidebar open/closed). No Provider wrapper. No boilerplate. 1KB. When we add auth, the user store lives here too. |
-| **@react-three/fiber + drei** | Three.js as a React renderer. Used *only* for the animated 3D background: a floating graph of glowing nodes and edges. This is the Apple homepage moment — the visual hook that makes the product feel premium. Lazy-loaded so it doesn't block the main UI. |
-| **@react-three/postprocessing** | Bloom effect on the 3D nodes. Gives them the glow of live data. One import, zero hand-written GLSL. |
+| **React 19 + TypeScript** | Component model, compile-time API contract validation |
+| **Vite 8** | Sub-second HMR, tree-shaken production builds, proxy for dev |
+| **Tailwind CSS v3** | Design tokens in `tailwind.config.ts`. Consistent dark theme. |
+| **Framer Motion v12** | Spring-physics animations. `whileInView` for scroll-triggered reveals. |
+| **React Flow v12** | ER diagram canvas — zoom, pan, minimap, custom ERNode/EREdge |
+| **Dagre** | Auto-layout for ER nodes on every diagram update |
+| **TanStack Query v5** | Server state caching. `useSessionDetail` rehydrates on project switch. |
+| **Zustand v5** | `authStore` (localStorage), `appStore` (sessionStorage). No Provider boilerplate. |
+| **Three.js (R3F)** | Lazy-loaded 3D ambient background with Bloom. Zero blocking impact. |
 
----
+### CORS
 
-## Architecture
+Two-part fix required by Spring Security + Spring MVC:
+1. `WebMvcConfig.corsConfigurationSource()` — `@Bean` with allowed origins including `https://schemavis.shreyasshelar.uk`
+2. `SecurityConfig`: `.cors(Customizer.withDefaults())` — delegates Spring Security's CORS filter to the bean above, also auto-permits OPTIONS preflight before auth checks
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     React Frontend (port 5173)               │
-│                                                              │
-│   ┌──────────────────┐       ┌──────────────────────────┐   │
-│   │   Chat Panel      │       │     Diagram Panel         │   │
-│   │  Framer Motion    │       │      React Flow           │   │
-│   │  TanStack Query   │       │      Dagre layout         │   │
-│   └────────┬─────────┘       └──────────────────────────┘   │
-│            │                                                 │
-│   ┌────────▼──────────────────────────────────────────────┐  │
-│   │              Three.js Background Scene                 │  │
-│   │         (lazy, floating ER node graph, bloom)          │  │
-│   └────────────────────────────────────────────────────────┘  │
-└──────────────────────────┬───────────────────────────────────┘
-                           │  REST (JSON) — /api/**
-                           │  Vite proxy in dev
-                           ▼
-┌──────────────────────────────────────────────────────────────┐
-│                Spring Boot Backend (port 8080)               │
-│                                                              │
-│  ChatController → ChatService → GeminiService                │
-│                         ↓                                    │
-│               SessionRepository (JPA)                        │
-│               MessageRepository (JPA)                        │
-│                         ↓                                    │
-│            H2 (dev) / PostgreSQL (prod)                      │
-└──────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-                  ┌────────────────┐
-                  │  Gemini API    │
-                  │  (free tier)   │
-                  └────────────────┘
-```
-
----
-
-## Project Structure
+### Infrastructure
 
 ```
-schema-visualiser/
-│
-├── PLAN.md                        ← this file
-├── README.md
-├── docker-compose.yml             ← backend + postgres
-├── .env.example
-│
-├── backend/
-│   ├── pom.xml
-│   └── src/main/
-│       ├── java/com/schemavis/
-│       │   ├── SchemaVisualiserApplication.java
-│       │   ├── config/
-│       │   │   ├── AppConfig.java          (RestTemplate, ObjectMapper beans)
-│       │   │   ├── OpenApiConfig.java       (Springdoc metadata)
-│       │   │   ├── RateLimitConfig.java     (Bucket4j setup)
-│       │   │   └── WebMvcConfig.java        (CORS)
-│       │   ├── controller/
-│       │   │   ├── SessionController.java   (POST/GET/DELETE /api/sessions)
-│       │   │   └── ChatController.java      (POST /api/sessions/{id}/messages)
-│       │   ├── service/
-│       │   │   ├── ChatService.java         (orchestration)
-│       │   │   ├── GeminiService.java       (AI API calls)
-│       │   │   └── DiagramParserService.java (Mermaid → structured data)
-│       │   ├── domain/
-│       │   │   ├── Session.java             (JPA entity)
-│       │   │   └── Message.java             (JPA entity)
-│       │   ├── repository/
-│       │   │   ├── SessionRepository.java
-│       │   │   └── MessageRepository.java
-│       │   ├── dto/
-│       │   │   ├── NewSessionRequest.java
-│       │   │   ├── NewSessionResponse.java
-│       │   │   ├── SendMessageRequest.java
-│       │   │   ├── SendMessageResponse.java
-│       │   │   └── SessionDetailResponse.java
-│       │   └── exception/
-│       │       ├── AppException.java
-│       │       └── GlobalExceptionHandler.java
-│       └── resources/
-│           ├── application.yml
-│           ├── application-dev.yml
-│           ├── application-prod.yml
-│           └── db/migration/
-│               └── V1__init.sql
-│
-└── frontend/
-    ├── package.json
-    ├── vite.config.ts
-    ├── tailwind.config.ts
-    ├── tsconfig.json
-    └── src/
-        ├── main.tsx
-        ├── App.tsx
-        ├── api/
-        │   ├── client.ts              (axios instance, interceptors)
-        │   ├── sessions.ts            (session API calls)
-        │   └── messages.ts            (message API calls)
-        ├── store/
-        │   └── appStore.ts            (Zustand — session, ui state)
-        ├── hooks/
-        │   ├── useSession.ts          (TanStack Query wrappers)
-        │   ├── useChat.ts
-        │   └── useHotkeys.ts
-        ├── types/
-        │   ├── api.ts                 (DTO types matching backend)
-        │   └── diagram.ts             (ERNode, EREdge, Column types)
-        ├── lib/
-        │   ├── mermaidParser.ts       (Mermaid string → nodes/edges)
-        │   └── diagramLayout.ts       (Dagre auto-layout)
-        ├── components/
-        │   ├── layout/
-        │   │   ├── AppShell.tsx
-        │   │   ├── Header.tsx
-        │   │   └── SplitPane.tsx
-        │   ├── chat/
-        │   │   ├── ChatPanel.tsx
-        │   │   ├── MessageList.tsx
-        │   │   ├── MessageBubble.tsx
-        │   │   ├── TypingIndicator.tsx
-        │   │   ├── DdlInput.tsx
-        │   │   ├── ChatInput.tsx
-        │   │   └── SchemaBadge.tsx
-        │   ├── diagram/
-        │   │   ├── DiagramPanel.tsx
-        │   │   ├── ERNode.tsx          (React Flow custom node)
-        │   │   ├── EREdge.tsx          (React Flow custom edge)
-        │   │   ├── DiagramToolbar.tsx
-        │   │   └── EmptyDiagram.tsx
-        │   └── three/
-        │       ├── BackgroundScene.tsx  (R3F Canvas, lazy)
-        │       ├── FloatingGraph.tsx    (animated nodes + edges)
-        │       └── GlowNode.tsx         (single glowing node mesh)
-        └── styles/
-            └── globals.css            (Tailwind base + custom vars)
+GCP e2-medium VM (asia-south1)
+└── k3s
+    ├── namespace: argocd
+    │   ├── ArgoCD             (GitOps controller, UI at argocd.shreyasshelar.uk)
+    │   └── ArgoCD Image Updater (polls ghcr.io, commits sha-* tags to git)
+    └── namespace: schema-vis
+        ├── schema-vis-frontend    (nginx + React SPA, HPA 1–3)
+        ├── schema-vis-backend     (Spring Boot, HPA 1–5)
+        ├── schema-vis-postgres    (PostgreSQL 16, single pod, 5 GiB PVC)
+        └── schema-vis-cloudflared (×2 pods, outbound tunnel to Cloudflare)
+```
+
+Key decisions:
+- **Cloudflare Tunnel**: outbound-only, no open ports on VM, free TLS, DDoS protection
+- **`createSecrets: false`**: Helm never creates/touches k8s Secrets. Pre-created manually with `kubectl create secret`. This prevents ArgoCD from ever seeing secret values.
+- **`helm.sh/resource-policy: keep`** on PostgreSQL PVC: survive Helm upgrades without data loss
+- **HPA**: `autoscaling/v2` with scale-up stabilization 30s and scale-down 300s (backend) / 180s (frontend)
+- **Private ghcr.io**: `imagePullSecrets: [ghcr-credentials]` in both `schema-vis` and `argocd` namespaces
+
+### GitOps Deploy Flow
+
+```
+git push main
+  → ci.yml:     Maven build + test + tsc --noEmit + npm run build
+  → deploy.yml: Docker multi-stage build (backend + frontend)
+                Push sha-XXXXXXX + latest → ghcr.io (private)
+  → Image Updater: polls every 2 min, sees sha-* tag
+                   commits "chore: update backend to sha-abc1234" to main
+  → ArgoCD:     detects commit, diffs cluster, rolling update
+  → k3s:        RollingUpdate — readiness probe must pass before traffic shifts
+  Total: ~4–6 min first deploy, ~2–3 min warm cache
+  Rollback: revert Image Updater commit → ArgoCD self-heals in <30s
 ```
 
 ---
 
-## API Contract
+## Current File Map
 
-All endpoints return `application/json`. All error responses use `{ "error": "string", "code": "string" }`.
+```
+schema_visualiser/
+├── .github/workflows/
+│   ├── ci.yml                    triggers: push to main only
+│   └── deploy.yml                build + push to ghcr.io (no SSH, no kubectl)
+├── backend/src/main/java/com/schemavis/
+│   ├── controller/
+│   │   ├── AuthController.java   POST /api/auth/register, /login
+│   │   ├── SessionController.java POST/GET/DELETE /api/sessions
+│   │   └── ChatController.java   POST /api/sessions/{id}/messages
+│   ├── service/
+│   │   ├── ai/
+│   │   │   ├── AiProvider.java           interface
+│   │   │   ├── SystemPrompt.java         single source of truth for prompt
+│   │   │   ├── GeminiService.java        @Order(1), different REST format
+│   │   │   ├── OpenAiCompatProvider.java abstract base (Groq + OpenRouter)
+│   │   │   ├── GroqProvider.java         @Order(2)
+│   │   │   ├── OpenRouterProvider.java   @Order(3)
+│   │   │   └── FallbackAiService.java    iterates providers, catches errors
+│   │   ├── ChatService.java              injects FallbackAiService
+│   │   └── AuthService.java
+│   ├── domain/      User, Session, Message
+│   ├── security/    SecurityConfig (.cors + .csrf.disable + JWT filter)
+│   │                JwtAuthFilter, JwtTokenProvider
+│   └── config/      WebMvcConfig (CORS bean + addCorsMappings)
+│                    AppConfig (RestTemplate, ObjectMapper beans)
+├── backend/src/main/resources/
+│   ├── application.yml      ai.gemini/groq/openrouter keys + models
+│   └── db/migration/        V1__init.sql, V2__auth.sql
+├── frontend/src/
+│   ├── pages/DocsPage.tsx         public /docs route (no auth)
+│   ├── App.tsx                    routes: /login, /register, /docs, / (protected)
+│   ├── components/layout/Header.tsx  Docs link added
+│   ├── hooks/useSession.ts        useSessionDetail — restoredForRef prevents double-restore
+│   └── public/docs/               static HTML artifacts at /docs/*.html
+├── helm/schema-vis/
+│   ├── values.yaml                createSecrets:false, HPA, image repos, cloudflared.hostname
+│   └── templates/
+│       ├── backend-deployment.yaml   envFrom: schema-vis-backend-secret
+│       ├── backend-hpa.yaml          autoscaling/v2, CPU+memory metrics
+│       ├── backend-secret.yaml       {{- if .Values.createSecrets }}
+│       ├── frontend-deployment.yaml  imagePullSecrets from values
+│       ├── frontend-hpa.yaml
+│       ├── postgres-secret.yaml      {{- if .Values.createSecrets }}
+│       ├── cloudflared-deployment.yaml  reads TUNNEL_TOKEN from secret
+│       └── cloudflared-secret.yaml   {{- if .Values.cloudflared.enabled }}
+└── k8s/argocd-app.yaml            ArgoCD Application + Image Updater annotations
+```
 
-### Sessions
+---
 
-| Method | Path | Description |
+## Resolved Issues
+
+| Issue | Root cause | Fix |
 |---|---|---|
-| `POST` | `/api/sessions` | Create session, optionally seed with DDL |
-| `GET` | `/api/sessions/{id}` | Get full session (messages + diagram) |
-| `DELETE` | `/api/sessions/{id}` | Delete session |
-
-**POST /api/sessions**
-```json
-// Request
-{ "ddl": "CREATE TABLE users (...)" }
-
-// Response 201
-{
-  "sessionId": "uuid",
-  "message": "I can see 3 tables...",
-  "diagram": "erDiagram\n    USERS {...}",
-  "complete": false
-}
-```
-
-### Messages
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/sessions/{id}/messages` | Send message, get AI reply |
-
-**POST /api/sessions/{id}/messages**
-```json
-// Request
-{ "content": "The users table has a one-to-many with orders" }
-
-// Response 200
-{
-  "messageId": "uuid",
-  "content": "Got it! How about the orders → line_items relationship?",
-  "diagram": "erDiagram\n    USERS ||--o{ ORDERS : ...",
-  "complete": false
-}
-```
-
-### System
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/actuator/health` | Health check |
-| `GET` | `/v3/api-docs` | OpenAPI spec |
-| `GET` | `/swagger-ui.html` | Swagger UI |
+| CORS 403 on live app | `WebMvcConfig` only allowed localhost origins; no `.cors()` in SecurityConfig | Added `https://schemavis.shreyasshelar.uk` + `CorsConfigurationSource` bean + `.cors(Customizer.withDefaults())` |
+| Project switch blank state | `useSessionDetail` hook existed but was never called anywhere | Called it in `ChatPanel.tsx` before early returns; `restoredForRef` prevents double-restore |
+| CI failure (`EBADPLATFORM`) | `@rolldown/binding-darwin-arm64` added as hard dependency | Removed from `package.json` (now optional transitive dep) |
+| TypeScript error `TS6133` | Unused `Spinner` import in `Header.tsx` | Removed import |
+| k8s liveness probe 404 | Spring Security was blocking `/actuator/health/**` | Added `permitAll()` for `/actuator/health/**` |
 
 ---
 
-## Implementation Phases
+## What Is NOT Done (Future Work)
 
-### ✅ Phase 0 — Wipe & Scaffold
-- [ ] Delete old prototype files
-- [ ] Create `backend/` and `frontend/` directories
-- [ ] Initialise Vite + React + TypeScript in `frontend/`
-- [ ] New `pom.xml` with all production dependencies
-
-### 🔲 Phase 1 — Backend: Data Layer
-- [ ] JPA entities: `Session`, `Message`
-- [ ] Flyway migration `V1__init.sql`
-- [ ] `SessionRepository`, `MessageRepository`
-- [ ] `application.yml`, `application-dev.yml`, `application-prod.yml`
-
-### 🔲 Phase 2 — Backend: Service & AI Layer
-- [ ] `GeminiService` — Gemini 2.0 Flash REST integration
-- [ ] `DiagramParserService` — extract `[DIAGRAM]` blocks
-- [ ] `ChatService` — orchestrate session + AI + diagram
-- [ ] Rate limiting with Bucket4j
-
-### 🔲 Phase 3 — Backend: API Layer
-- [ ] `SessionController` — POST/GET/DELETE
-- [ ] `ChatController` — POST messages
-- [ ] `GlobalExceptionHandler` — consistent error shape
-- [ ] `OpenApiConfig` — Swagger metadata
-- [ ] CORS config for `localhost:5173`
-
-### 🔲 Phase 4 — Frontend: Foundation
-- [ ] Vite config with `/api` proxy
-- [ ] Tailwind config + design tokens (CSS vars)
-- [ ] Zustand store (session ID, loading, sidebar)
-- [ ] Axios client with interceptors
-- [ ] TanStack Query provider + hooks
-
-### 🔲 Phase 5 — Frontend: Chat UI
-- [ ] `AppShell` + `Header` + `SplitPane`
-- [ ] `DdlInput` with collapsible Framer Motion panel
-- [ ] `MessageList` + `MessageBubble` with Framer Motion enter/exit
-- [ ] `TypingIndicator` (animated dots)
-- [ ] `ChatInput` with auto-resize + hotkeys
-- [ ] `SchemaBadge` (complete state)
-
-### 🔲 Phase 6 — Frontend: ER Diagram
-- [ ] `mermaidParser.ts` — parse Mermaid string → `{nodes, edges}`
-- [ ] `diagramLayout.ts` — Dagre auto-placement
-- [ ] `ERNode` custom React Flow node (table card with columns)
-- [ ] `EREdge` custom React Flow edge (cardinality labels)
-- [ ] `DiagramPanel` with zoom/pan/minimap
-- [ ] Animated diagram update (nodes fade-in on change)
-
-### 🔲 Phase 7 — Frontend: 3D Background
-- [ ] `BackgroundScene` — R3F Canvas, full-screen, pointer-events none
-- [ ] `FloatingGraph` — 15–20 glowing node meshes, slow drift
-- [ ] Bloom post-processing (UnrealBloomPass)
-- [ ] Lazy-load so it doesn't block chat interactions
-- [ ] Respects `prefers-reduced-motion`
-
-### 🔲 Phase 8 — Production Hardening
-- [ ] `Dockerfile` for backend (multi-stage: build + JRE)
-- [ ] `Dockerfile` for frontend (Vite build + nginx)
-- [ ] `docker-compose.yml` (backend + postgres + frontend)
-- [ ] `.env.example`
-- [ ] `README.md` with setup instructions
-
----
-
-## SaaS Future Considerations
-
-These are NOT implemented now but the architecture supports them without rewrites:
-
-- **Auth**: `User` entity → `Session.userId` FK. Spring Security + JWT on backend. Protected routes on frontend.
-- **Teams/Orgs**: `Organisation` entity → `Session.orgId`. Multi-tenancy by FK, not by schema.
-- **Billing**: Sessions table already has `createdAt`. Usage = `COUNT(messages) WHERE session.userId = ?`.
-- **Redis cache**: `spring.cache.type=redis` replaces in-memory JPA query caching.
-- **Webhook exports**: `DiagramParserService` already returns structured data. POST it anywhere.
-- **AI model swap**: `gemini.model` property. One-line change to switch to GPT-4o, Claude, etc.
+- **Teams / orgs**: `Organisation` entity → `Session.orgId`. Multi-tenancy by FK.
+- **Billing**: Sessions already have `createdAt`. Usage = `COUNT(messages) WHERE userId = ?`.
+- **Redis cache**: `spring.cache.type=redis` → multi-instance rate limiting support.
+- **AI streaming**: Server-Sent Events for token-by-token diagram updates.
+- **Diagram export**: PNG/SVG export from React Flow canvas.
+- **OAuth / SSO**: Social login (Google, GitHub) via Spring Security OAuth2.
