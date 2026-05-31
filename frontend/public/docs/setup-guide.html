@@ -172,7 +172,7 @@ chmod +x argocd && sudo mv argocd /usr/local/bin/</pre><button class="copy-btn" 
         2. Name it <code>schemavis</code> → select Cloudflared connector → <strong>copy the tunnel token</strong><br>
         3. Add Public Hostnames:<br>
         &nbsp;&nbsp;• <code>schemavis.shreyasshelar.uk</code> → <code>http://schema-vis-frontend.schema-vis.svc.cluster.local:80</code><br>
-        &nbsp;&nbsp;• <code>argocd.shreyasshelar.uk</code> → <code>http://argocd-server.argocd.svc.cluster.local:80</code><br>
+        &nbsp;&nbsp;• <code>argocd-schemavis.shreyasshelar.uk</code> → <code>http://argocd-server.argocd.svc.cluster.local:80</code><br>
         4. Save tunnel
       </div></div></div>
       <div class="step"><div class="step-check" onclick="check(this)"></div><div class="step-content"><div class="step-title">Create GitHub PAT (classic)</div><div class="step-sub">
@@ -263,7 +263,7 @@ kubectl apply -f k8s/argocd-app.yaml</pre><button class="copy-btn" onclick="copy
   <div class="complete-banner" id="complete-banner">
     <h3>🎉 Setup complete!</h3>
     <p>Your SchemaVis instance is live at <strong>schemavis.shreyasshelar.uk</strong>.<br>
-    ArgoCD UI at <strong>argocd.shreyasshelar.uk</strong>.<br>
+    ArgoCD UI at <strong>argocd-schemavis.shreyasshelar.uk</strong>.<br>
     Future deploys are fully automatic — just <code style="color:var(--accL);font-family:monospace">git push main</code>.</p>
   </div>
 

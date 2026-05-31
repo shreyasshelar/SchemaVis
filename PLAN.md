@@ -65,7 +65,7 @@ Two-part fix required by Spring Security + Spring MVC:
 GCP e2-medium VM (asia-south1)
 └── k3s
     ├── namespace: argocd
-    │   ├── ArgoCD             (GitOps controller, UI at argocd.shreyasshelar.uk)
+    │   ├── ArgoCD             (GitOps controller, UI at argocd-schemavis.shreyasshelar.uk)
     │   └── ArgoCD Image Updater (polls ghcr.io, commits sha-* tags to git)
     └── namespace: schema-vis
         ├── schema-vis-frontend    (nginx + React SPA, HPA 1–3)
