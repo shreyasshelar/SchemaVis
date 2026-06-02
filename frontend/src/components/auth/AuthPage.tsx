@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { DatabaseIcon, EyeIcon, EyeOffIcon, BookOpenIcon } from 'lucide-react'
-import { useLogin } from '@/hooks/useAuth'
-import { useRegister } from '@/hooks/useAuth'
+import {
+  DatabaseIcon, EyeIcon, EyeOffIcon,
+  BookOpenIcon, AlertCircleIcon,
+} from 'lucide-react'
+import { useLogin, useRegister } from '@/hooks/useAuth'
 
-// ── Shared field ─────────────────────────────────────────────────
+// ── Field ─────────────────────────────────────────────────────────
 function Field({
   label, type, value, onChange, placeholder, error,
 }: {
@@ -18,10 +20,13 @@ function Field({
 }) {
   const [show, setShow] = useState(false)
   const isPassword = type === 'password'
+  const hasError   = Boolean(error)
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-sec font-medium">{label}</label>
+      <label className={`text-xs font-medium ${hasError ? 'text-red-400' : 'text-sec'}`}>
+        {label}
+      </label>
       <div className="relative">
         <input
           type={isPassword && show ? 'text' : (type ?? 'text')}
@@ -30,14 +35,17 @@ function Field({
           placeholder={placeholder}
           className={`
             w-full bg-input border rounded-lg px-3 py-2.5 text-sm text-hi
-            placeholder:text-muted outline-none transition-colors
-            focus:border-acc/60 focus:ring-1 focus:ring-acc/30
-            ${error ? 'border-red-500/60' : 'border-brd'}
+            placeholder:text-muted outline-none transition-all
+            ${hasError
+              ? 'border-red-500/70 ring-1 ring-red-500/30 focus:border-red-500/80 focus:ring-red-500/40'
+              : 'border-brd focus:border-acc/60 focus:ring-1 focus:ring-acc/30'
+            }
           `}
         />
         {isPassword && (
           <button
             type="button"
+            tabIndex={-1}
             onClick={() => setShow((s) => !s)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-sec/60 hover:text-sec"
           >
@@ -45,32 +53,82 @@ function Field({
           </button>
         )}
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {hasError && (
+        <motion.p
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-1 text-xs text-red-400"
+        >
+          <AlertCircleIcon size={11} className="flex-none" />
+          {error}
+        </motion.p>
+      )}
     </div>
   )
 }
 
-// ── Login ────────────────────────────────────────────────────────
+// ── Server-error banner ───────────────────────────────────────────
+function ServerError({ message }: { message: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/25"
+    >
+      <AlertCircleIcon size={14} className="text-red-400 flex-none mt-0.5" />
+      <p className="text-sm text-red-400 leading-snug">{message}</p>
+    </motion.div>
+  )
+}
+
+// ── Login ─────────────────────────────────────────────────────────
 export function LoginPage() {
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
+  const [errors,   setErrors]   = useState({ email: '', password: '' })
   const login = useLogin()
+
+  const validate = () => {
+    const e = { email: '', password: '' }
+    if (!email.trim())
+      e.email = 'Email is required'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      e.email = 'Enter a valid email address'
+    if (!password)
+      e.password = 'Password is required'
+    setErrors(e)
+    return !e.email && !e.password
+  }
 
   const handle = (e: React.FormEvent) => {
     e.preventDefault()
-    login.mutate({ email, password })
+    if (!validate()) return
+    login.mutate({ email: email.trim(), password })
   }
 
   return (
     <AuthShell title="Welcome back" sub="Sign in to your SchemaVis account">
-      <form onSubmit={handle} className="flex flex-col gap-4">
-        <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" />
-        <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
+      <form onSubmit={handle} className="flex flex-col gap-4" noValidate>
+        <Field
+          label="Email" type="email"
+          value={email} placeholder="you@example.com"
+          onChange={(v) => { setEmail(v); setErrors((p) => ({ ...p, email: '' })) }}
+          error={errors.email}
+        />
+        <Field
+          label="Password" type="password"
+          value={password} placeholder="••••••••"
+          onChange={(v) => { setPassword(v); setErrors((p) => ({ ...p, password: '' })) }}
+          error={errors.password}
+        />
 
         {login.isError && (
-          <p className="text-sm text-red-400 text-center">
-            {(login.error as { friendlyMessage?: string })?.friendlyMessage ?? 'Login failed'}
-          </p>
+          <ServerError
+            message={
+              (login.error as { friendlyMessage?: string })?.friendlyMessage
+              ?? 'Incorrect email or password. Please try again.'
+            }
+          />
         )}
 
         <button
@@ -91,29 +149,65 @@ export function LoginPage() {
   )
 }
 
-// ── Register ─────────────────────────────────────────────────────
+// ── Register ──────────────────────────────────────────────────────
 export function RegisterPage() {
   const [name,     setName]     = useState('')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
+  const [errors,   setErrors]   = useState({ name: '', email: '', password: '' })
   const register = useRegister()
+
+  const validate = () => {
+    const e = { name: '', email: '', password: '' }
+    if (!name.trim())
+      e.name = 'Display name is required'
+    if (!email.trim())
+      e.email = 'Email is required'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      e.email = 'Enter a valid email address'
+    if (!password)
+      e.password = 'Password is required'
+    else if (password.length < 8)
+      e.password = 'Password must be at least 8 characters'
+    setErrors(e)
+    return !e.name && !e.email && !e.password
+  }
 
   const handle = (e: React.FormEvent) => {
     e.preventDefault()
-    register.mutate({ displayName: name, email, password })
+    if (!validate()) return
+    register.mutate({ displayName: name.trim(), email: email.trim(), password })
   }
 
   return (
     <AuthShell title="Create account" sub="Start visualising your schemas today">
-      <form onSubmit={handle} className="flex flex-col gap-4">
-        <Field label="Display name" value={name} onChange={setName} placeholder="Shreyas" />
-        <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" />
-        <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="8+ characters" />
+      <form onSubmit={handle} className="flex flex-col gap-4" noValidate>
+        <Field
+          label="Display name"
+          value={name} placeholder="Shreyas"
+          onChange={(v) => { setName(v); setErrors((p) => ({ ...p, name: '' })) }}
+          error={errors.name}
+        />
+        <Field
+          label="Email" type="email"
+          value={email} placeholder="you@example.com"
+          onChange={(v) => { setEmail(v); setErrors((p) => ({ ...p, email: '' })) }}
+          error={errors.email}
+        />
+        <Field
+          label="Password" type="password"
+          value={password} placeholder="8+ characters"
+          onChange={(v) => { setPassword(v); setErrors((p) => ({ ...p, password: '' })) }}
+          error={errors.password}
+        />
 
         {register.isError && (
-          <p className="text-sm text-red-400 text-center">
-            {(register.error as { friendlyMessage?: string })?.friendlyMessage ?? 'Registration failed'}
-          </p>
+          <ServerError
+            message={
+              (register.error as { friendlyMessage?: string })?.friendlyMessage
+              ?? 'Registration failed. Please try again.'
+            }
+          />
         )}
 
         <button
@@ -134,7 +228,7 @@ export function RegisterPage() {
   )
 }
 
-// ── Shared shell ─────────────────────────────────────────────────
+// ── Shell ─────────────────────────────────────────────────────────
 function AuthShell({ title, sub, children }: {
   title: string
   sub:   string
@@ -142,7 +236,7 @@ function AuthShell({ title, sub, children }: {
 }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-base px-4">
-      {/* Top nav bar */}
+      {/* Top nav */}
       <div className="fixed top-0 left-0 right-0 flex items-center justify-between px-6 h-12 border-b border-brd bg-panel/80 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md bg-acc/20 border border-acc/40 flex items-center justify-center">

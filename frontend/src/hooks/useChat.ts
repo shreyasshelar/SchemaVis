@@ -4,8 +4,10 @@ import { useAppStore } from '@/store/appStore'
 import type { MessageDto } from '@/types/api'
 
 export function useChat() {
-  const { sessionId, appendMessage, updateDiagram, setPhase, setIsSending } =
-    useAppStore()
+  const {
+    sessionId, phase,
+    appendMessage, updateDiagram, setPhase, setIsSending, setPendingComplete,
+  } = useAppStore()
 
   return useMutation({
     mutationFn: (content: string) => {
@@ -15,6 +17,14 @@ export function useChat() {
 
     onMutate: (content) => {
       setIsSending(true)
+
+      // If the schema was previously marked complete and the user sends a new
+      // message, revert to 'chatting' — they want to keep refining.
+      // The "Schema complete" badge disappears immediately so there's no confusion.
+      if (phase === 'complete') setPhase('chatting')
+      // Also dismiss any pending-complete banner left over from a previous response.
+      setPendingComplete(false)
+
       // Optimistically add user message
       const userMsg: MessageDto = {
         id: crypto.randomUUID(),
@@ -35,7 +45,8 @@ export function useChat() {
       appendMessage(assistantMsg)
 
       if (data.diagram) updateDiagram(data.diagram)
-      if (data.complete) setPhase('complete')
+      // Don't auto-complete — show approval banner instead so user decides
+      if (data.complete) setPendingComplete(true)
     },
 
     onSettled: () => {

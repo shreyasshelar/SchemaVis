@@ -21,6 +21,7 @@ interface AppState {
   // UI helpers
   isSending: boolean               // debounce send button
   diagramVisible: boolean          // panel toggle on narrow viewports
+  pendingComplete: boolean         // AI suggested complete — awaiting user approval
 
   // Actions
   startSession: (sessionId: string, firstMessage: MessageDto, diagram: string | null) => void
@@ -28,6 +29,7 @@ interface AppState {
   updateDiagram: (diagram: string) => void
   setPhase: (phase: UIPhase) => void
   setIsSending: (v: boolean) => void
+  setPendingComplete: (v: boolean) => void
   toggleDiagram: () => void
   resetSession: () => void
 }
@@ -42,6 +44,7 @@ export const useAppStore = create<AppState>()(
       messages: [],
       isSending: false,
       diagramVisible: true,
+      pendingComplete: false,
 
       startSession: (sessionId, firstMessage, diagram) =>
         set({
@@ -63,6 +66,9 @@ export const useAppStore = create<AppState>()(
       setIsSending: (v) =>
         set({ isSending: v }),
 
+      setPendingComplete: (v) =>
+        set({ pendingComplete: v }),
+
       toggleDiagram: () =>
         set((s) => ({ diagramVisible: !s.diagramVisible })),
 
@@ -73,6 +79,7 @@ export const useAppStore = create<AppState>()(
           phase: 'idle',
           messages: [],
           isSending: false,
+          pendingComplete: false,
         }),
     }),
     {
