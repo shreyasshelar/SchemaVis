@@ -10,5 +10,10 @@ public record NewSessionRequest(
         String ddl,
 
         @Schema(description = "Human-friendly project name", example = "E-Commerce DB")
-        String name
+        String name,
+
+        @Schema(description = "Optional Mermaid erDiagram from a previous session — lets the AI "
+                            + "continue from where you left off without replaying the full history",
+                example = "erDiagram\n  users { int id PK\n  varchar email }")
+        String seedDiagram
 ) {}

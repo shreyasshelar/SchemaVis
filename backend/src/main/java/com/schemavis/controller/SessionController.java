@@ -57,7 +57,7 @@ public class SessionController {
     ) {
         checkRateLimit(httpRequest);
         NewSessionResponse response = chatService.createSession(
-                request.ddl(), request.name(), user.getId());
+                request.ddl(), request.name(), user.getId(), request.seedDiagram());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
