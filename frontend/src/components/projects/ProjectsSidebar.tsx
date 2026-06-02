@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import {
   useFolderTree, useCreateFolder, useRenameFolder,
-  useDeleteFolder, useMoveSession,
+  useDeleteFolder,
 } from '@/hooks/useFolders'
 import { useCreateSession, useDeleteSession } from '@/hooks/useSession'
 import { useAppStore } from '@/store/appStore'
@@ -27,9 +27,8 @@ function SessionRow({
   session: SessionSummary
   indent?: boolean
 }) {
-  const activeId     = useAppStore((s) => s.sessionId)
+  const activeId      = useAppStore((s) => s.sessionId)
   const deleteSession = useDeleteSession()
-  const renameFolder  = useRenameFolder()  // not used here — kept for future
   const [editName, setEditName] = useState('')
   const [editing,  setEditing]  = useState(false)
 
