@@ -10,5 +10,6 @@ public record SessionSummaryResponse(
         Instant lastActivity,
         boolean complete,
         boolean hasDiagram,
-        int messageCount
+        int messageCount,
+        String projectId          // null = ungrouped
 ) {}

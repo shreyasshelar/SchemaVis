@@ -15,5 +15,9 @@ public record NewSessionRequest(
         @Schema(description = "Optional Mermaid erDiagram from a previous session — lets the AI "
                             + "continue from where you left off without replaying the full history",
                 example = "erDiagram\n  users { int id PK\n  varchar email }")
-        String seedDiagram
+        String seedDiagram,
+
+        @Schema(description = "Optional project folder ID to assign this session to",
+                example = "a1b2c3d4-...")
+        String projectId
 ) {}

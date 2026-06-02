@@ -1,16 +1,15 @@
-import { useMemo, useCallback, useEffect } from 'react'
+import { useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   ReactFlow,
-  ReactFlowProvider,
   Background,
   Controls,
   MiniMap,
   useNodesState,
   useEdgesState,
-  useReactFlow,
   addEdge,
   BackgroundVariant,
   type Connection,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -50,7 +49,7 @@ function RefreshButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      title="Reset node positions and fit all tables in view"
+      title="Reset positions and fit all tables in view"
       className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1.5
         rounded-lg bg-surf/80 border border-brd text-xs text-sec
         hover:text-hi hover:border-brdLt transition-colors backdrop-blur-sm"
@@ -61,27 +60,29 @@ function RefreshButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-// ── Inner canvas — must live inside ReactFlowProvider ────────────
-// This gives us access to useReactFlow() for fitView + fitView-after-relayout.
+// ── Inner canvas ─────────────────────────────────────────────────
+// Separated so useNodesState/useEdgesState are called without early returns.
+// Uses onInit instance ref for fitView — more reliable than useReactFlow()
+// which can connect to the wrong provider context in nested setups.
 interface FlowCanvasProps {
   parsedNodes: ERNodeType[]
   parsedEdges: EREdgeType[]
 }
 
 function FlowCanvas({ parsedNodes, parsedEdges }: FlowCanvasProps) {
-  const { fitView } = useReactFlow()
+  const rfRef = useRef<ReactFlowInstance<ERNodeType, EREdgeType> | null>(null)
   const { diagram } = useAppStore()
 
   const [nodes, setNodes, onNodesChange] = useNodesState<ERNodeType>(parsedNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<EREdgeType>(parsedEdges)
 
-  // Sync whenever the diagram string changes (new AI message)
+  // Sync whenever the diagram string changes (new AI response)
   useEffect(() => {
     setNodes(parsedNodes)
     setEdges(parsedEdges)
-    // rAF: let React flush the state update, then fit
-    requestAnimationFrame(() => fitView({ padding: 0.2, duration: 300 }))
-  }, [parsedNodes, parsedEdges, setNodes, setEdges, fitView])
+    // Small timeout ensures React has committed state before fitView measures nodes
+    setTimeout(() => rfRef.current?.fitView({ padding: 0.2, duration: 300 }), 50)
+  }, [parsedNodes, parsedEdges, setNodes, setEdges])
 
   const onConnect = useCallback(
     (connection: Connection) =>
@@ -96,9 +97,9 @@ function FlowCanvas({ parsedNodes, parsedEdges }: FlowCanvasProps) {
       const { nodes: n, edges: e } = buildReactFlowGraph(parseMermaidErDiagram(diagram))
       setNodes(n)
       setEdges(e)
-      requestAnimationFrame(() => fitView({ padding: 0.2, duration: 400 }))
+      setTimeout(() => rfRef.current?.fitView({ padding: 0.2, duration: 400 }), 50)
     } catch { /* ignore parse errors */ }
-  }, [diagram, setNodes, setEdges, fitView])
+  }, [diagram, setNodes, setEdges])
 
   return (
     <ReactFlow
@@ -109,11 +110,14 @@ function FlowCanvas({ parsedNodes, parsedEdges }: FlowCanvasProps) {
       onConnect={onConnect}
       nodeTypes={NODE_TYPES}
       edgeTypes={EDGE_TYPES}
-      // onInit fires after ReactFlow has measured the container.
-      // We delay 300 ms so the SplitPane width CSS transition (250 ms) and
-      // framer-motion entrance animation (220 ms) have both finished before
-      // we try to fit the view — otherwise the container is still 0 px wide.
-      onInit={(instance) => setTimeout(() => instance.fitView({ padding: 0.2 }), 300)}
+      // onInit gives us the direct flow instance — used for fitView.
+      // Delay 300ms so the SplitPane CSS width transition (250ms) and the
+      // framer-motion entrance animation (220ms) have both completed before
+      // we try to fit the view — otherwise the container can still be 0px wide.
+      onInit={(instance) => {
+        rfRef.current = instance
+        setTimeout(() => instance.fitView({ padding: 0.2 }), 300)
+      }}
       minZoom={0.2}
       maxZoom={2}
       style={{ height: '100%' }}
@@ -137,7 +141,7 @@ function FlowCanvas({ parsedNodes, parsedEdges }: FlowCanvasProps) {
   )
 }
 
-// ── Outer panel — owns parsing, provider, AnimatePresence ────────
+// ── Outer panel — owns parsing + AnimatePresence ──────────────────
 export function DiagramPanel() {
   const { diagram } = useAppStore()
 
@@ -172,14 +176,12 @@ export function DiagramPanel() {
             className="flex-1 h-full"
           >
             {/*
-              ReactFlowProvider wraps FlowCanvas so useReactFlow() inside it
-              has access to the flow instance (fitView, getNodes, etc.).
-              Each time this motion.div mounts (panel shown after hidden),
-              a fresh provider + instance is created — fitView re-fires via onInit.
+              FlowCanvas mounts fresh each time the panel shows (key="flow" remounts
+              when diagram goes null→non-null). onInit re-fires, fitView re-runs.
+              No ReactFlowProvider needed — ReactFlow creates its own provider internally,
+              and rfRef captures that exact instance via onInit.
             */}
-            <ReactFlowProvider>
-              <FlowCanvas parsedNodes={parsedNodes} parsedEdges={parsedEdges} />
-            </ReactFlowProvider>
+            <FlowCanvas parsedNodes={parsedNodes} parsedEdges={parsedEdges} />
           </motion.div>
         )}
       </AnimatePresence>

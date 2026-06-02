@@ -2,47 +2,228 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   PlusIcon, FolderOpenIcon, FolderIcon, CheckCircle2Icon,
-  PencilIcon, Trash2Icon, ChevronLeftIcon, DatabaseIcon,
+  PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronDownIcon,
+  ChevronRightIcon, DatabaseIcon, FolderPlusIcon, MessageSquarePlusIcon,
 } from 'lucide-react'
-import { useProjects, useDeleteProject, useRenameProject } from '@/hooks/useProjects'
-import { useCreateSession } from '@/hooks/useSession'
+import {
+  useFolderTree, useCreateFolder, useRenameFolder,
+  useDeleteFolder, useMoveSession,
+} from '@/hooks/useFolders'
+import { useCreateSession, useDeleteSession } from '@/hooks/useSession'
 import { useAppStore } from '@/store/appStore'
 import { Spinner } from '@/components/ui/Spinner'
-import type { SessionSummary } from '@/types/api'
+import type { SessionSummary, FolderSummary } from '@/types/api'
 
 interface Props {
   collapsed: boolean
   onToggle:  () => void
 }
 
-export function ProjectsSidebar({ collapsed, onToggle }: Props) {
-  const { data: projects, isLoading } = useProjects()
+// ── Single session row ───────────────────────────────────────────
+function SessionRow({
+  session,
+  indent = false,
+}: {
+  session: SessionSummary
+  indent?: boolean
+}) {
+  const activeId     = useAppStore((s) => s.sessionId)
+  const deleteSession = useDeleteSession()
+  const renameFolder  = useRenameFolder()  // not used here — kept for future
+  const [editName, setEditName] = useState('')
+  const [editing,  setEditing]  = useState(false)
+
+  const isActive = session.sessionId === activeId
+
+  const open = () => {
+    if (isActive) return
+    useAppStore.setState({
+      sessionId: session.sessionId,
+      messages:  [],
+      diagram:   null,
+      phase:     'chatting',
+    })
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -6 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -6 }}
+      className={[
+        'group relative flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer',
+        'transition-colors text-sm select-none',
+        indent ? 'ml-3' : '',
+        isActive ? 'bg-acc/15 text-hi' : 'text-sec hover:bg-surf hover:text-hi',
+      ].join(' ')}
+      onClick={open}
+    >
+      <div className="flex-none">
+        {isActive
+          ? <FolderOpenIcon size={13} className="text-acc" />
+          : <DatabaseIcon   size={13} />}
+      </div>
+
+      {editing ? (
+        <input
+          autoFocus
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'Escape') setEditing(false)
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 min-w-0 bg-transparent border-b border-acc/60 outline-none text-hi text-sm"
+        />
+      ) : (
+        <span className="flex-1 min-w-0 truncate text-xs leading-snug">{session.name}</span>
+      )}
+
+      {session.complete && (
+        <CheckCircle2Icon size={11} className="text-ok flex-none opacity-70" />
+      )}
+
+      <div className="hidden group-hover:flex items-center gap-0.5 absolute right-1 bg-panel rounded px-0.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${session.name}"?`)) deleteSession.mutate(session.sessionId) }}
+          className="p-0.5 rounded hover:bg-red-500/20 text-sec hover:text-red-400"
+          title="Delete chat"
+        >
+          <Trash2Icon size={10} />
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+// ── Folder row with its sessions ─────────────────────────────────
+function FolderRow({ folder }: { folder: FolderSummary }) {
+  const [open,        setOpen]     = useState(true)
+  const [editing,     setEditing]  = useState(false)
+  const [editName,    setEditName] = useState(folder.name)
+  const renameFolder = useRenameFolder()
+  const deleteFolder = useDeleteFolder()
   const createSession = useCreateSession()
-  const deleteProject = useDeleteProject()
-  const renameProject = useRenameProject()
-  const activeId      = useAppStore((s) => s.sessionId)
 
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName,  setEditName]  = useState('')
+  const commitRename = () => {
+    if (editName.trim() && editName.trim() !== folder.name) {
+      renameFolder.mutate({ projectId: folder.projectId, name: editName.trim() })
+    }
+    setEditing(false)
+  }
 
-  const handleNew = () => {
+  const handleNewChat = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    createSession.mutate({ name: 'New Schema', projectId: folder.projectId })
+  }
+
+  return (
+    <div>
+      {/* Folder header */}
+      <div
+        className="group flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer
+                   text-sec hover:bg-surf hover:text-hi transition-colors select-none"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="flex-none text-sec/60">
+          {open ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
+        </span>
+        <FolderIcon size={13} className="flex-none text-acc/70" />
+
+        {editing ? (
+          <input
+            autoFocus
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename()
+              if (e.key === 'Escape') setEditing(false)
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 min-w-0 bg-transparent border-b border-acc/60 outline-none text-hi text-sm"
+          />
+        ) : (
+          <span className="flex-1 min-w-0 truncate text-xs font-semibold">
+            {folder.name}
+          </span>
+        )}
+
+        <span className="text-2xs text-muted ml-auto flex-none">
+          {folder.sessions.length}
+        </span>
+
+        {/* Folder actions — show on hover */}
+        <div className="hidden group-hover:flex items-center gap-0.5 ml-0.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleNewChat(e) }}
+            className="p-0.5 rounded hover:bg-acc/20 text-sec hover:text-acc"
+            title="New chat in this folder"
+          >
+            <MessageSquarePlusIcon size={11} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setEditName(folder.name); setEditing(true) }}
+            className="p-0.5 rounded hover:bg-surf text-sec hover:text-hi"
+            title="Rename folder"
+          >
+            <PencilIcon size={10} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              if (confirm(`Delete folder "${folder.name}"? Sessions inside will become ungrouped.`)) {
+                deleteFolder.mutate(folder.projectId)
+              }
+            }}
+            className="p-0.5 rounded hover:bg-red-500/20 text-sec hover:text-red-400"
+            title="Delete folder"
+          >
+            <Trash2Icon size={10} />
+          </button>
+        </div>
+      </div>
+
+      {/* Sessions inside folder */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="ml-1 border-l border-brd/50 pl-1 mt-0.5 space-y-0.5">
+              {folder.sessions.length === 0 ? (
+                <p className="text-2xs text-muted px-2 py-1.5 italic">No chats yet</p>
+              ) : (
+                <AnimatePresence initial={false}>
+                  {folder.sessions.map((s) => (
+                    <SessionRow key={s.sessionId} session={s} indent />
+                  ))}
+                </AnimatePresence>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ── Main sidebar ─────────────────────────────────────────────────
+export function ProjectsSidebar({ collapsed, onToggle }: Props) {
+  const { data: tree, isLoading } = useFolderTree()
+  const createSession  = useCreateSession()
+  const createFolder   = useCreateFolder()
+
+  const handleNewChat = () => {
     createSession.mutate({ name: 'New Schema' })
   }
 
-  const startRename = (p: SessionSummary) => {
-    setEditingId(p.sessionId)
-    setEditName(p.name)
-  }
-
-  const commitRename = (sessionId: string) => {
-    if (editName.trim()) renameProject.mutate({ sessionId, name: editName.trim() })
-    setEditingId(null)
-  }
-
-  /** Open a project: reset store with the chosen session id; useSessionDetail will reload history */
-  const handleOpen = (p: SessionSummary) => {
-    if (p.sessionId === activeId) return
-    useAppStore.setState({ sessionId: p.sessionId, messages: [], diagram: null, phase: 'chatting' })
+  const handleNewFolder = () => {
+    createFolder.mutate('New Folder')
   }
 
   return (
@@ -55,144 +236,128 @@ export function ProjectsSidebar({ collapsed, onToggle }: Props) {
         onClick={onToggle}
       />
 
-    <div
-      className={`
-        flex-none flex flex-col border-r border-brd bg-panel/95 backdrop-blur-sm
-        transition-all duration-300 overflow-hidden
-        fixed md:relative inset-y-0 left-0 z-50 md:z-auto h-full
-        ${collapsed
-          ? '-translate-x-full md:translate-x-0 w-56 md:w-12'
-          : 'translate-x-0 w-56'}
-      `}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 h-12 border-b border-brd flex-none">
+      <div
+        className={`
+          flex-none flex flex-col border-r border-brd bg-panel/95 backdrop-blur-sm
+          transition-all duration-300 overflow-hidden
+          fixed md:relative inset-y-0 left-0 z-50 md:z-auto h-full
+          ${collapsed
+            ? '-translate-x-full md:translate-x-0 w-56 md:w-12'
+            : 'translate-x-0 w-56'}
+        `}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 h-12 border-b border-brd flex-none">
+          {!collapsed && (
+            <span className="text-xs font-semibold text-sec uppercase tracking-wider">
+              Projects
+            </span>
+          )}
+          <button
+            onClick={onToggle}
+            className="ml-auto p-1.5 rounded hover:bg-surf text-sec hover:text-hi transition-colors"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <ChevronLeftIcon
+              size={14}
+              className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}
+            />
+          </button>
+        </div>
+
+        {/* Action buttons */}
         {!collapsed && (
-          <span className="text-xs font-semibold text-sec uppercase tracking-wider">
-            Projects
-          </span>
-        )}
-        <button
-          onClick={onToggle}
-          className="ml-auto p-1.5 rounded hover:bg-surf text-sec hover:text-hi transition-colors"
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <ChevronLeftIcon
-            size={14}
-            className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}
-          />
-        </button>
-      </div>
-
-      {/* New project */}
-      <div className="px-2 py-2 border-b border-brd flex-none">
-        <button
-          onClick={handleNew}
-          disabled={createSession.isPending}
-          className="w-full flex items-center gap-2 rounded-lg px-2 py-2
-                     text-acc hover:bg-acc/10 transition-colors text-sm font-medium
-                     disabled:opacity-50"
-          title="New project"
-        >
-          {createSession.isPending
-            ? <Spinner size={14} className="text-acc" />
-            : <PlusIcon size={14} />}
-          {!collapsed && <span>New project</span>}
-        </button>
-      </div>
-
-      {/* List */}
-      <div className="flex-1 overflow-y-auto py-1 space-y-0.5 px-1.5">
-        {isLoading && (
-          <div className="flex justify-center pt-4">
-            <Spinner size={16} className="text-sec" />
-          </div>
-        )}
-
-        <AnimatePresence initial={false}>
-          {projects?.map((p) => (
-            <motion.div
-              key={p.sessionId}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              className={`
-                group relative flex items-center gap-2 rounded-lg px-2 py-2 cursor-pointer
-                transition-colors text-sm select-none
-                ${p.sessionId === activeId
-                  ? 'bg-acc/15 text-hi'
-                  : 'text-sec hover:bg-surf hover:text-hi'}
-              `}
-              onClick={() => handleOpen(p)}
+          <div className="px-2 py-2 border-b border-brd flex gap-1 flex-none">
+            <button
+              onClick={handleNewChat}
+              disabled={createSession.isPending}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5
+                         text-acc hover:bg-acc/10 transition-colors text-xs font-medium
+                         disabled:opacity-50"
+              title="New chat (ungrouped)"
             >
-              <div className="flex-none">
-                {p.sessionId === activeId
-                  ? <FolderOpenIcon size={14} className="text-acc" />
-                  : <FolderIcon size={14} />}
+              {createSession.isPending
+                ? <Spinner size={12} className="text-acc" />
+                : <PlusIcon size={12} />}
+              New chat
+            </button>
+            <button
+              onClick={handleNewFolder}
+              disabled={createFolder.isPending}
+              className="flex items-center justify-center gap-1 rounded-lg px-2 py-1.5
+                         text-sec hover:bg-surf hover:text-hi transition-colors text-xs
+                         disabled:opacity-50"
+              title="New folder"
+            >
+              {createFolder.isPending
+                ? <Spinner size={12} className="text-sec" />
+                : <FolderPlusIcon size={12} />}
+            </button>
+          </div>
+        )}
+
+        {/* Collapsed: just icons */}
+        {collapsed && (
+          <div className="flex flex-col items-center gap-1 py-2 border-b border-brd flex-none">
+            <button
+              onClick={handleNewChat}
+              disabled={createSession.isPending}
+              className="p-1.5 rounded hover:bg-acc/10 text-acc transition-colors"
+              title="New chat"
+            >
+              <PlusIcon size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Tree */}
+        {!collapsed && (
+          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+            {isLoading && (
+              <div className="flex justify-center pt-4">
+                <Spinner size={16} className="text-sec" />
               </div>
+            )}
 
-              {!collapsed && (
-                <>
-                  {editingId === p.sessionId ? (
-                    <input
-                      autoFocus
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onBlur={() => commitRename(p.sessionId)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter')  commitRename(p.sessionId)
-                        if (e.key === 'Escape') setEditingId(null)
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex-1 min-w-0 bg-transparent border-b border-acc/60
-                                 outline-none text-hi text-sm"
-                    />
-                  ) : (
-                    <span className="flex-1 min-w-0 truncate text-sm leading-snug">
-                      {p.name}
-                    </span>
-                  )}
+            {/* Folders */}
+            {tree?.folders.map((folder) => (
+              <FolderRow key={folder.projectId} folder={folder} />
+            ))}
 
-                  {p.complete && (
-                    <CheckCircle2Icon size={12} className="text-ok flex-none opacity-70" />
-                  )}
+            {/* Divider if both sections have content */}
+            {tree && tree.folders.length > 0 && tree.ungrouped.length > 0 && (
+              <div className="border-t border-brd/50 my-1" />
+            )}
 
-                  {editingId !== p.sessionId && (
-                    <div className="hidden group-hover:flex items-center gap-0.5 absolute right-1.5 bg-panel rounded">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startRename(p) }}
-                        className="p-0.5 rounded hover:bg-surf text-sec hover:text-hi"
-                        title="Rename"
-                      >
-                        <PencilIcon size={11} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (confirm(`Delete "${p.name}"?`)) deleteProject.mutate(p.sessionId)
-                        }}
-                        className="p-0.5 rounded hover:bg-red-500/20 text-sec hover:text-red-400"
-                        title="Delete"
-                      >
-                        <Trash2Icon size={11} />
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </motion.div>
-          ))}
-        </AnimatePresence>
+            {/* Ungrouped sessions */}
+            {tree && tree.ungrouped.length > 0 && (
+              <div>
+                {tree.folders.length > 0 && (
+                  <p className="text-2xs text-muted uppercase tracking-wider px-2 mb-1">
+                    Ungrouped
+                  </p>
+                )}
+                <AnimatePresence initial={false}>
+                  {tree.ungrouped.map((s) => (
+                    <SessionRow key={s.sessionId} session={s} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
 
-        {!isLoading && !projects?.length && !collapsed && (
-          <div className="text-center pt-6 px-3">
-            <DatabaseIcon size={24} className="text-sec/40 mx-auto mb-2" />
-            <p className="text-xs text-sec/60">No projects yet</p>
-            <p className="text-xs text-sec/40 mt-1">Click + to create one</p>
+            {/* Empty state */}
+            {!isLoading && tree && tree.folders.length === 0 && tree.ungrouped.length === 0 && (
+              <div className="text-center pt-6 px-3">
+                <DatabaseIcon size={24} className="text-sec/40 mx-auto mb-2" />
+                <p className="text-xs text-sec/60">No projects yet</p>
+                <p className="text-xs text-sec/40 mt-1">
+                  Click <strong className="text-sec/60">New chat</strong> or create a folder
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
-    </div>
     </>
   )
 }

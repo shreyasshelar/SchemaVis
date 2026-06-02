@@ -5,6 +5,7 @@ import com.schemavis.domain.User;
 import com.schemavis.dto.*;
 import com.schemavis.exception.AppException;
 import com.schemavis.service.ChatService;
+import com.schemavis.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,12 +23,16 @@ import java.util.List;
 @Tag(name = "Sessions", description = "Create and manage schema chat sessions (projects)")
 public class SessionController {
 
-    private final ChatService    chatService;
+    private final ChatService     chatService;
+    private final ProjectService  projectService;
     private final RateLimitConfig rateLimiter;
 
-    public SessionController(ChatService chatService, RateLimitConfig rateLimiter) {
-        this.chatService  = chatService;
-        this.rateLimiter  = rateLimiter;
+    public SessionController(ChatService chatService,
+                             ProjectService projectService,
+                             RateLimitConfig rateLimiter) {
+        this.chatService    = chatService;
+        this.projectService = projectService;
+        this.rateLimiter    = rateLimiter;
     }
 
     // ── GET /api/sessions ─────────────────────────────────────
@@ -57,7 +62,8 @@ public class SessionController {
     ) {
         checkRateLimit(httpRequest);
         NewSessionResponse response = chatService.createSession(
-                request.ddl(), request.name(), user.getId(), request.seedDiagram());
+                request.ddl(), request.name(), user.getId(),
+                request.seedDiagram(), request.projectId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -99,6 +105,20 @@ public class SessionController {
             @AuthenticationPrincipal User user
     ) {
         chatService.deleteSession(id, user.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    // ── PUT /api/sessions/{id}/project ───────────────────────
+    // Move a session into a folder, or ungroup it (projectId = null).
+
+    @PutMapping("/{id}/project")
+    @Operation(summary = "Move a session to a different folder (or ungroup it)")
+    public ResponseEntity<Void> moveToProject(
+            @PathVariable String id,
+            @RequestBody MoveSessionRequest request,
+            @AuthenticationPrincipal User user
+    ) {
+        projectService.moveSession(id, request.projectId(), user.getId());
         return ResponseEntity.noContent().build();
     }
 

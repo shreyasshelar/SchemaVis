@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { sessionsApi } from '@/api/sessions'
 import { useAppStore } from '@/store/appStore'
-import { projectKeys } from '@/hooks/useProjects'
+import { folderKeys } from '@/hooks/useFolders'
 import type { NewSessionRequest, MessageDto } from '@/types/api'
 
 // ── Keys ─────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ export const sessionKeys = {
 
 // ── Create session ────────────────────────────────────────────────
 export function useCreateSession() {
-  const { startSession, setPhase } = useAppStore()
+  const { startSession, setPendingComplete } = useAppStore()
   const qc = useQueryClient()
 
   return useMutation({
@@ -26,9 +26,10 @@ export function useCreateSession() {
         createdAt: new Date().toISOString(),
       }
       startSession(data.sessionId, firstMsg, data.diagram)
-      if (data.complete) setPhase('complete')
-      // Refresh the projects sidebar
-      qc.invalidateQueries({ queryKey: projectKeys.all })
+      // Show approval banner instead of auto-locking — same as mid-chat complete
+      if (data.complete) setPendingComplete(true)
+      // Refresh the folder sidebar
+      qc.invalidateQueries({ queryKey: folderKeys.tree })
     },
   })
 }
@@ -80,7 +81,7 @@ export function useDeleteSession() {
     mutationFn: (sessionId: string) => sessionsApi.remove(sessionId),
     onSuccess: () => {
       resetSession()
-      qc.invalidateQueries({ queryKey: projectKeys.all })
+      qc.invalidateQueries({ queryKey: folderKeys.tree })
     },
   })
 }

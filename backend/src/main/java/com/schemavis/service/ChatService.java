@@ -63,7 +63,8 @@ public class ChatService {
                         s.getLastActivity(),
                         s.isSchemaComplete(),
                         s.getCurrentDiagram() != null,
-                        s.getMessages().size()
+                        s.getMessages().size(),
+                        s.getProjectId()
                 ))
                 .collect(Collectors.toList());
     }
@@ -82,7 +83,8 @@ public class ChatService {
                 session.getLastActivity(),
                 session.isSchemaComplete(),
                 session.getCurrentDiagram() != null,
-                session.getMessages().size()
+                session.getMessages().size(),
+                session.getProjectId()
         );
     }
 
@@ -90,8 +92,9 @@ public class ChatService {
 
     @Transactional
     public NewSessionResponse createSession(String ddl, String name, String userId,
-                                            String seedDiagram) {
+                                            String seedDiagram, String projectId) {
         Session session = Session.create(userId, name);
+        if (projectId != null && !projectId.isBlank()) session.setProjectId(projectId);
 
         // Build the opening user message
         String openingMessage = buildOpeningMessage(ddl, seedDiagram);
