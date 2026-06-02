@@ -30,6 +30,10 @@ public class Session {
     @Column(name = "user_id", length = 36)
     private String userId;
 
+    /** Optional folder this session belongs to (null = ungrouped). */
+    @Column(name = "project_id", length = 36)
+    private String projectId;
+
     @Column(name = "name", nullable = false, length = 100)
     private String name = "New Schema";
 
@@ -75,7 +79,10 @@ public class Session {
     public List<Message> getMessages()     { return messages; }
 
     public String  getUserId()    { return userId; }
+    public String  getProjectId() { return projectId; }
     public String  getName()      { return name; }
+
+    public void setProjectId(String pid) { this.projectId = pid; }
 
     public void setCurrentDiagram(String d)   { this.currentDiagram = d; }
     public void setSchemaComplete(boolean c)  { this.schemaComplete = c; }

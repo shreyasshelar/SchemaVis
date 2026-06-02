@@ -15,6 +15,12 @@ public interface SessionRepository extends JpaRepository<Session, String> {
     /** All sessions belonging to a user, newest activity first. */
     List<Session> findByUserIdOrderByLastActivityDesc(String userId);
 
+    /** Sessions inside a specific folder, newest activity first. */
+    List<Session> findByProjectIdAndUserIdOrderByLastActivityDesc(String projectId, String userId);
+
+    /** Sessions not assigned to any folder (ungrouped), newest activity first. */
+    List<Session> findByProjectIdIsNullAndUserIdOrderByLastActivityDesc(String userId);
+
     /** Ownership check — does this session belong to this user? */
     boolean existsByIdAndUserId(String id, String userId);
 

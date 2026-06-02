@@ -14,8 +14,10 @@ export interface UserDto {
 
 // ── Request types ─────────────────────────────────────────────────
 export interface NewSessionRequest {
-  ddl?:  string
-  name?: string
+  ddl?:         string
+  name?:        string
+  seedDiagram?: string
+  projectId?:   string   // assign to a folder on creation
 }
 
 export interface SendMessageRequest {
@@ -64,6 +66,20 @@ export interface SessionSummary {
   complete:     boolean
   hasDiagram:   boolean
   messageCount: number
+  projectId:    string | null   // null = ungrouped
+}
+
+// ── Project folder types ──────────────────────────────────────────
+export interface FolderSummary {
+  projectId: string
+  name:      string
+  createdAt: string
+  sessions:  SessionSummary[]
+}
+
+export interface ProjectTree {
+  folders:   FolderSummary[]
+  ungrouped: SessionSummary[]
 }
 
 // ── Error shape ───────────────────────────────────────────────────
