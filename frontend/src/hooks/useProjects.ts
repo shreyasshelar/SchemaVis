@@ -4,7 +4,6 @@ export { folderKeys as projectKeys, useFolderTree as useProjects } from '@/hooks
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { sessionsApi } from '@/api/sessions'
-import { foldersApi } from '@/api/folders'
 import { useAppStore } from '@/store/appStore'
 import { folderKeys } from '@/hooks/useFolders'
 
