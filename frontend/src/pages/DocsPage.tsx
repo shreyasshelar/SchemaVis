@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuthStore } from '@/store/authStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   DatabaseIcon, SparklesIcon, MessageSquareIcon, ZapIcon,
@@ -41,6 +42,7 @@ const NAV_LINKS = [
 
 function DocsNav() {
   const [open, setOpen] = useState(false)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   return (
     <nav className="sticky top-0 z-50 bg-app/95 backdrop-blur-xl border-b border-brd">
@@ -64,13 +66,25 @@ function DocsNav() {
 
         {/* Desktop CTAs */}
         <div className="hidden sm:flex items-center gap-2">
-          <Link to="/login"    className="inline-flex items-center h-8 px-3 text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
-          <Link to="/register" className="inline-flex items-center h-8 px-3 text-xs rounded-lg bg-acc hover:bg-accD text-white font-semibold transition-colors">Get started</Link>
+          {isAuthenticated ? (
+            <Link to="/" className="inline-flex items-center gap-1.5 h-8 px-4 text-xs rounded-lg bg-acc hover:bg-accD text-white font-semibold transition-colors">
+              ← Back to app
+            </Link>
+          ) : (
+            <>
+              <Link to="/login"    className="inline-flex items-center h-8 px-3 text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
+              <Link to="/register" className="inline-flex items-center h-8 px-3 text-xs rounded-lg bg-acc hover:bg-accD text-white font-semibold transition-colors">Get started</Link>
+            </>
+          )}
         </div>
 
-        {/* Mobile: sign in + hamburger */}
+        {/* Mobile: back-to-app or sign in + hamburger */}
         <div className="flex sm:hidden items-center gap-2">
-          <Link to="/login" className="text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
+          {isAuthenticated ? (
+            <Link to="/" className="text-xs text-acc font-medium hover:text-accD transition-colors">← App</Link>
+          ) : (
+            <Link to="/login" className="text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
+          )}
           <button
             onClick={() => setOpen(o => !o)}
             className="w-8 h-8 rounded-lg bg-surf border border-brd flex items-center justify-center text-sec hover:text-hi transition-colors"
@@ -101,13 +115,23 @@ function DocsNav() {
                   {l.label}
                 </a>
               ))}
-              <Link
-                to="/register"
-                onClick={() => setOpen(false)}
-                className="mt-2 py-2.5 text-sm text-center rounded-lg bg-acc text-white font-semibold hover:bg-accD transition-colors"
-              >
-                Get started free
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  to="/"
+                  onClick={() => setOpen(false)}
+                  className="mt-2 py-2.5 text-sm text-center rounded-lg bg-acc text-white font-semibold hover:bg-accD transition-colors"
+                >
+                  ← Back to app
+                </Link>
+              ) : (
+                <Link
+                  to="/register"
+                  onClick={() => setOpen(false)}
+                  className="mt-2 py-2.5 text-sm text-center rounded-lg bg-acc text-white font-semibold hover:bg-accD transition-colors"
+                >
+                  Get started free
+                </Link>
+              )}
             </div>
           </motion.div>
         )}
@@ -120,6 +144,7 @@ function DocsNav() {
 // Hero
 // ─────────────────────────────────────────────────────────────────
 function Hero() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return (
     <section className="relative flex flex-col items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
       {/* Background glow */}
@@ -172,12 +197,21 @@ function Hero() {
           transition={{ duration: 0.5, delay: 0.3 }}
           className="flex flex-wrap items-center justify-center gap-3"
         >
-          <Link
-            to="/register"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-acc hover:bg-accD text-white font-semibold text-sm transition-colors shadow-glow"
-          >
-            Start for free <ArrowRightIcon size={14} />
-          </Link>
+          {isAuthenticated ? (
+            <Link
+              to="/"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-acc hover:bg-accD text-white font-semibold text-sm transition-colors shadow-glow"
+            >
+              Open app <ArrowRightIcon size={14} />
+            </Link>
+          ) : (
+            <Link
+              to="/register"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-acc hover:bg-accD text-white font-semibold text-sm transition-colors shadow-glow"
+            >
+              Start for free <ArrowRightIcon size={14} />
+            </Link>
+          )}
           <a
             href="#demo"
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surf border border-brd hover:border-brdLt text-sec hover:text-hi font-medium text-sm transition-colors"
@@ -978,6 +1012,7 @@ function Artifacts() {
 // CTA
 // ─────────────────────────────────────────────────────────────────
 function CTA() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return (
     <section className="py-16 px-6">
       <div className="max-w-2xl mx-auto text-center">
@@ -1004,18 +1039,29 @@ function CTA() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link
-                  to="/register"
-                  className="flex items-center gap-2 px-7 py-3 rounded-xl bg-acc hover:bg-accD text-white font-bold text-sm transition-colors shadow-glow"
-                >
-                  Create free account <ArrowRightIcon size={15} />
-                </Link>
-                <Link
-                  to="/login"
-                  className="flex items-center gap-2 px-7 py-3 rounded-xl bg-surf border border-brd hover:border-brdLt text-sec hover:text-hi font-medium text-sm transition-colors"
-                >
-                  Sign in
-                </Link>
+                {isAuthenticated ? (
+                  <Link
+                    to="/"
+                    className="flex items-center gap-2 px-7 py-3 rounded-xl bg-acc hover:bg-accD text-white font-bold text-sm transition-colors shadow-glow"
+                  >
+                    Open app <ArrowRightIcon size={15} />
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      to="/register"
+                      className="flex items-center gap-2 px-7 py-3 rounded-xl bg-acc hover:bg-accD text-white font-bold text-sm transition-colors shadow-glow"
+                    >
+                      Create free account <ArrowRightIcon size={15} />
+                    </Link>
+                    <Link
+                      to="/login"
+                      className="flex items-center gap-2 px-7 py-3 rounded-xl bg-surf border border-brd hover:border-brdLt text-sec hover:text-hi font-medium text-sm transition-colors"
+                    >
+                      Sign in
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1029,6 +1075,7 @@ function CTA() {
 // Footer
 // ─────────────────────────────────────────────────────────────────
 function Footer() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return (
     <footer className="border-t border-brd bg-panel/40 py-12 px-6">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
@@ -1044,7 +1091,9 @@ function Footer() {
 
         <div className="flex items-center gap-6 text-xs text-sec">
           <Link to="/" className="hover:text-hi transition-colors">App</Link>
-          <Link to="/register" className="hover:text-hi transition-colors">Register</Link>
+          {!isAuthenticated && (
+            <Link to="/register" className="hover:text-hi transition-colors">Register</Link>
+          )}
           <a href="/docs/architecture.html" className="hover:text-hi transition-colors">Architecture</a>
           <a href="/docs/api-reference.html" className="hover:text-hi transition-colors">API docs</a>
           <a
