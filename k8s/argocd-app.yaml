@@ -13,10 +13,12 @@ metadata:
       backend=ghcr.io/shreyasshelar/schema-vis-backend,
       frontend=ghcr.io/shreyasshelar/schema-vis-frontend
 
+    # Tags use YYYYMMDDHHMMSS-sha-<short> format so alphabetical sort = chronological.
+    # e.g. 20260606120000-sha-1d8083f sorts correctly against 20260605180000-sha-30929ae
     argocd-image-updater.argoproj.io/backend.update-strategy: alphabetical
-    argocd-image-updater.argoproj.io/backend.allow-tags: "regexp:^sha-"
+    argocd-image-updater.argoproj.io/backend.allow-tags: "regexp:^[0-9]{14}-sha-"
     argocd-image-updater.argoproj.io/frontend.update-strategy: alphabetical
-    argocd-image-updater.argoproj.io/frontend.allow-tags: "regexp:^sha-"
+    argocd-image-updater.argoproj.io/frontend.allow-tags: "regexp:^[0-9]{14}-sha-"
 
     argocd-image-updater.argoproj.io/backend.pull-secret: pullsecret:argocd/ghcr-credentials
     argocd-image-updater.argoproj.io/frontend.pull-secret: pullsecret:argocd/ghcr-credentials
