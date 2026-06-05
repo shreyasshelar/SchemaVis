@@ -10,28 +10,38 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write    # push ArgoCD source file back to main
-  packages: write    # push to ghcr.io
+  contents: read
+  packages: write     # push to ghcr.io
 
 env:
   IMAGE_BACKEND:  ghcr.io/${{ github.repository_owner }}/schema-vis-backend
   IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/schema-vis-frontend
 
+# How deployment works:
+#   1. This workflow builds & pushes images tagged as YYYYMMDDHHMMSS-sha-<short>.
+#      Timestamp prefix ensures alphabetical sort = chronological order, so
+#      ArgoCD Image Updater's "alphabetical" strategy always picks the newest build.
+#   2. ArgoCD Image Updater detects the new tag and writes it to
+#      helm/schema-vis/.argocd-source-schema-vis.yaml on main (it has a PAT).
+#   3. ArgoCD auto-syncs and rolls out new pods.
 jobs:
   build-and-push:
     name: Build & Push Images
     runs-on: ubuntu-latest
 
     outputs:
-      image-tag: sha-${{ steps.sha.outputs.short }}
+      image-tag: ${{ steps.tag.outputs.value }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get short SHA
-        id: sha
-        run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Compute image tag (timestamp + sha)
+        id: tag
+        run: |
+          TS=$(date -u +%Y%m%d%H%M%S)
+          SHA=$(git rev-parse --short HEAD)
+          echo "value=${TS}-sha-${SHA}" >> $GITHUB_OUTPUT
 
       - name: Log in to ghcr.io
         uses: docker/login-action@v3
@@ -50,7 +60,7 @@ jobs:
           file:    ./backend/Dockerfile
           push:    true
           tags: |
-            ${{ env.IMAGE_BACKEND }}:sha-${{ steps.sha.outputs.short }}
+            ${{ env.IMAGE_BACKEND }}:${{ steps.tag.outputs.value }}
             ${{ env.IMAGE_BACKEND }}:latest
           cache-from: type=gha
           cache-to:   type=gha,mode=max
@@ -62,49 +72,15 @@ jobs:
           file:    ./frontend/Dockerfile
           push:    true
           tags: |
-            ${{ env.IMAGE_FRONTEND }}:sha-${{ steps.sha.outputs.short }}
+            ${{ env.IMAGE_FRONTEND }}:${{ steps.tag.outputs.value }}
             ${{ env.IMAGE_FRONTEND }}:latest
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
-      - name: Update ArgoCD image tags
-        env:
-          TAG: sha-${{ steps.sha.outputs.short }}
-          GIT_AUTHOR_NAME: shreyasshelar
-          GIT_AUTHOR_EMAIL: shreyasshelarrr@gmail.com
-          GIT_COMMITTER_NAME: shreyasshelar
-          GIT_COMMITTER_EMAIL: shreyasshelarrr@gmail.com
-        run: |
-          # Write the new image tag into the ArgoCD source override file.
-          # This bypasses ArgoCD Image Updater's alphabetical sha sorting (which is
-          # unreliable with hex shas — newer commits can sort alphabetically lower).
-          cat > helm/schema-vis/.argocd-source-schema-vis.yaml <<EOF
-          helm:
-            parameters:
-            - name: backend.image.tag
-              value: ${TAG}
-              forcestring: true
-            - name: createSecrets
-              value: "false"
-              forcestring: false
-            - name: frontend.image.tag
-              value: ${TAG}
-              forcestring: true
-            - name: image.name
-              value: ghcr.io/shreyasshelar/schema-vis-frontend
-              forcestring: true
-          EOF
-
-          git config user.name  "$GIT_AUTHOR_NAME"
-          git config user.email "$GIT_AUTHOR_EMAIL"
-          git add helm/schema-vis/.argocd-source-schema-vis.yaml
-          git diff --cached --quiet || git commit -m "build: deploy ${TAG} to production"
-          git push origin HEAD:main
-
       - name: Summary
         run: |
-          echo "### Images pushed & ArgoCD updated" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.IMAGE_BACKEND }}:sha-${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.IMAGE_FRONTEND }}:sha-${{ steps.sha.outputs.short }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "### Images pushed" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_BACKEND }}:${{ steps.tag.outputs.value }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.IMAGE_FRONTEND }}:${{ steps.tag.outputs.value }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "ArgoCD will sync \`sha-${{ steps.sha.outputs.short }}\` automatically." >> $GITHUB_STEP_SUMMARY
+          echo "ArgoCD Image Updater will pick up tag \`${{ steps.tag.outputs.value }}\` (alphabetical = chronological) and reconcile the cluster." >> $GITHUB_STEP_SUMMARY
