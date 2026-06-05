@@ -1,13 +1,13 @@
 helm:
   parameters:
   - name: backend.image.tag
-    value: sha-30929ae
+    value: sha-ccc4db8
     forcestring: true
   - name: createSecrets
     value: "false"
     forcestring: false
   - name: frontend.image.tag
-    value: sha-30929ae
+    value: sha-ccc4db8
     forcestring: true
   - name: image.name
     value: ghcr.io/shreyasshelar/schema-vis-frontend
