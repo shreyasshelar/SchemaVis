@@ -85,11 +85,14 @@ export const useAppStore = create<AppState>()(
     {
       name: 'schemavis-session',
       storage: createJSONStorage(() => sessionStorage), // cleared on tab close
+      // Only persist the minimum needed to restore session context on refresh.
+      // Messages are NOT persisted — they're always re-fetched from the server
+      // via useSessionDetail, which avoids stale-message flashes and keeps
+      // sessionStorage small (avoids hitting the 5 MB limit on long sessions).
       partialize: (s) => ({
         sessionId: s.sessionId,
-        diagram: s.diagram,
-        phase: s.phase,
-        messages: s.messages,
+        diagram:   s.diagram,
+        phase:     s.phase,
       }),
     },
   ),

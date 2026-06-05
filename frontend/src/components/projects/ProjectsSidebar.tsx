@@ -37,10 +37,14 @@ function SessionRow({
   const open = () => {
     if (isActive) return
     useAppStore.setState({
-      sessionId: session.sessionId,
-      messages:  [],
-      diagram:   null,
-      phase:     'chatting',
+      sessionId:       session.sessionId,
+      messages:        [],
+      isSending:       false,
+      pendingComplete: false,
+      phase:           'chatting',
+      // Intentionally NOT clearing diagram here — keep the previous diagram
+      // visible until useSessionDetail loads the new session's diagram.
+      // This prevents a jarring flash to EmptyDiagram during the fetch.
     })
   }
 

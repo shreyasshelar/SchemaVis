@@ -62,27 +62,71 @@ function RefreshButton({ onClick }: { onClick: () => void }) {
 
 // ── Inner canvas ─────────────────────────────────────────────────
 // Separated so useNodesState/useEdgesState are called without early returns.
-// Uses onInit instance ref for fitView — more reliable than useReactFlow()
-// which can connect to the wrong provider context in nested setups.
 interface FlowCanvasProps {
   parsedNodes: ERNodeType[]
   parsedEdges: EREdgeType[]
 }
 
 function FlowCanvas({ parsedNodes, parsedEdges }: FlowCanvasProps) {
-  const rfRef = useRef<ReactFlowInstance<ERNodeType, EREdgeType> | null>(null)
-  const { diagram } = useAppStore()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const rfRef        = useRef<ReactFlowInstance<ERNodeType, EREdgeType> | null>(null)
+  const fitTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { diagram }  = useAppStore()
 
   const [nodes, setNodes, onNodesChange] = useNodesState<ERNodeType>(parsedNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<EREdgeType>(parsedEdges)
 
-  // Sync whenever the diagram string changes (new AI response)
+  // ── Debounced fitView ──────────────────────────────────────────
+  // Cancels any pending timer before scheduling a new one, so rapid calls
+  // (diagram update + resize happening at the same ms) coalesce cleanly.
+  const scheduleFit = useCallback((delay = 80) => {
+    if (fitTimerRef.current) clearTimeout(fitTimerRef.current)
+    fitTimerRef.current = setTimeout(() => {
+      rfRef.current?.fitView({ padding: 0.2, duration: 300 })
+    }, delay)
+  }, [])
+
+  // ── Cleanup on unmount (prevent stale timer callbacks) ─────────
+  useEffect(() => () => {
+    if (fitTimerRef.current) clearTimeout(fitTimerRef.current)
+  }, [])
+
+  // ── Sync nodes/edges when diagram changes (new AI response) ────
   useEffect(() => {
     setNodes(parsedNodes)
     setEdges(parsedEdges)
-    // Small timeout ensures React has committed state before fitView measures nodes
-    setTimeout(() => rfRef.current?.fitView({ padding: 0.2, duration: 300 }), 50)
-  }, [parsedNodes, parsedEdges, setNodes, setEdges])
+    scheduleFit(80)
+  }, [parsedNodes, parsedEdges, setNodes, setEdges, scheduleFit])
+
+  // ── ResizeObserver: re-fit when the container changes size ─────
+  // Handles: initial mount while the SplitPane CSS width transition plays,
+  // hide → show diagram toggle, and window resize.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    let lastW = 0
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0
+      // Only re-fit when the width actually grows to a non-zero value
+      if (w > 0 && Math.abs(w - lastW) > 4) {
+        lastW = w
+        scheduleFit(150)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [scheduleFit])
+
+  // ── Re-layout: recompute dagre positions from scratch ──────────
+  const reLayout = useCallback(() => {
+    if (!diagram) return
+    try {
+      const { nodes: n, edges: e } = buildReactFlowGraph(parseMermaidErDiagram(diagram))
+      setNodes(n)
+      setEdges(e)
+      scheduleFit(80)
+    } catch { /* ignore parse errors on malformed mermaid */ }
+  }, [diagram, setNodes, setEdges, scheduleFit])
 
   const onConnect = useCallback(
     (connection: Connection) =>
@@ -90,54 +134,45 @@ function FlowCanvas({ parsedNodes, parsedEdges }: FlowCanvasProps) {
     [setEdges],
   )
 
-  // Re-layout: recompute positions from scratch then fit everything in view
-  const reLayout = useCallback(() => {
-    if (!diagram) return
-    try {
-      const { nodes: n, edges: e } = buildReactFlowGraph(parseMermaidErDiagram(diagram))
-      setNodes(n)
-      setEdges(e)
-      setTimeout(() => rfRef.current?.fitView({ padding: 0.2, duration: 400 }), 50)
-    } catch { /* ignore parse errors */ }
-  }, [diagram, setNodes, setEdges])
-
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
-      nodeTypes={NODE_TYPES}
-      edgeTypes={EDGE_TYPES}
-      // onInit gives us the direct flow instance — used for fitView.
-      // Delay 300ms so the SplitPane CSS width transition (250ms) and the
-      // framer-motion entrance animation (220ms) have both completed before
-      // we try to fit the view — otherwise the container can still be 0px wide.
-      onInit={(instance) => {
-        rfRef.current = instance
-        setTimeout(() => instance.fitView({ padding: 0.2 }), 300)
-      }}
-      minZoom={0.2}
-      maxZoom={2}
-      style={{ height: '100%' }}
-    >
-      <Background
-        variant={BackgroundVariant.Dots}
-        gap={24}
-        size={1}
-        color="#252538"
-      />
-      <Controls
-        className="!bg-panel !border-brd [&_button]:!bg-surf [&_button]:!border-brd [&_button]:!text-sec [&_button:hover]:!text-hi"
-      />
-      <MiniMap
-        nodeColor="#252538"
-        maskColor="rgba(8,8,15,0.7)"
-        className="!bg-panel/80 !border-brd"
-      />
-      <RefreshButton onClick={reLayout} />
-    </ReactFlow>
+    // containerRef lets ResizeObserver detect when this panel's width settles
+    <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
+        // onInit: store the instance ref, then fit after transitions complete.
+        // 300 ms covers the SplitPane CSS transition (250 ms) + framer-motion
+        // entrance animation (220 ms) with a small margin.
+        onInit={(instance) => {
+          rfRef.current = instance
+          scheduleFit(300)
+        }}
+        minZoom={0.2}
+        maxZoom={2}
+        style={{ height: '100%' }}
+      >
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={24}
+          size={1}
+          color="#252538"
+        />
+        <Controls
+          className="!bg-panel !border-brd [&_button]:!bg-surf [&_button]:!border-brd [&_button]:!text-sec [&_button:hover]:!text-hi"
+        />
+        <MiniMap
+          nodeColor="#252538"
+          maskColor="rgba(8,8,15,0.7)"
+          className="!bg-panel/80 !border-brd"
+        />
+        <RefreshButton onClick={reLayout} />
+      </ReactFlow>
+    </div>
   )
 }
 
@@ -145,7 +180,8 @@ function FlowCanvas({ parsedNodes, parsedEdges }: FlowCanvasProps) {
 export function DiagramPanel() {
   const { diagram } = useAppStore()
 
-  // Parse + layout whenever diagram string changes
+  // Parse + layout whenever the diagram string changes.
+  // Wrapped in try/catch so a malformed mermaid string never crashes the panel.
   const { nodes: parsedNodes, edges: parsedEdges } = useMemo(() => {
     if (!diagram) return { nodes: [] as ERNodeType[], edges: [] as EREdgeType[] }
     try {
@@ -164,6 +200,7 @@ export function DiagramPanel() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             className="flex-1 h-full"
           >
             <EmptyDiagram />
@@ -173,13 +210,13 @@ export function DiagramPanel() {
             key="flow"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
             className="flex-1 h-full"
           >
             {/*
-              FlowCanvas mounts fresh each time the panel shows (key="flow" remounts
-              when diagram goes null→non-null). onInit re-fires, fitView re-runs.
-              No ReactFlowProvider needed — ReactFlow creates its own provider internally,
-              and rfRef captures that exact instance via onInit.
+              FlowCanvas key is intentionally absent here — it stays mounted as long
+              as diagram is non-null.  Node/edge updates flow through props + useEffect.
+              onInit fires once per mount.  ResizeObserver handles post-animation refits.
             */}
             <FlowCanvas parsedNodes={parsedNodes} parsedEdges={parsedEdges} />
           </motion.div>
