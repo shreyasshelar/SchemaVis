@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   PlusIcon, FolderOpenIcon, FolderIcon, CheckCircle2Icon,
   PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronDownIcon,
   ChevronRightIcon, DatabaseIcon, FolderPlusIcon, MessageSquarePlusIcon,
+  FolderInputIcon,
 } from 'lucide-react'
 import {
   useFolderTree, useCreateFolder, useRenameFolder,
-  useDeleteFolder,
+  useDeleteFolder, useMoveSession,
 } from '@/hooks/useFolders'
-import { useCreateSession, useDeleteSession } from '@/hooks/useSession'
+import { useCreateSession, useDeleteSession, useRenameSession } from '@/hooks/useSession'
 import { useAppStore } from '@/store/appStore'
 import { Spinner } from '@/components/ui/Spinner'
 import type { SessionSummary, FolderSummary } from '@/types/api'
@@ -17,6 +18,68 @@ import type { SessionSummary, FolderSummary } from '@/types/api'
 interface Props {
   collapsed: boolean
   onToggle:  () => void
+}
+
+// ── "Move to folder" dropdown ────────────────────────────────────
+function MoveToMenu({
+  sessionId,
+  currentProjectId,
+  onClose,
+}: {
+  sessionId:        string
+  currentProjectId: string | null
+  onClose:          () => void
+}) {
+  const { data: tree } = useFolderTree()
+  const moveSession    = useMoveSession()
+  const menuRef        = useRef<HTMLDivElement>(null)
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  const moveTo = (projectId: string | null) => {
+    moveSession.mutate({ sessionId, projectId })
+    onClose()
+  }
+
+  return (
+    <div
+      ref={menuRef}
+      className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg bg-panel border border-brd shadow-lg py-1"
+    >
+      <p className="px-3 py-1 text-2xs text-muted uppercase tracking-wider">Move to</p>
+      {tree?.folders
+        .filter((f) => f.projectId !== currentProjectId)
+        .map((f) => (
+          <button
+            key={f.projectId}
+            onClick={(e) => { e.stopPropagation(); moveTo(f.projectId) }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-sec hover:bg-surf hover:text-hi transition-colors text-left"
+          >
+            <FolderIcon size={11} className="text-acc/70 flex-none" />
+            <span className="truncate">{f.name}</span>
+          </button>
+        ))}
+      {currentProjectId && (
+        <button
+          onClick={(e) => { e.stopPropagation(); moveTo(null) }}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-sec hover:bg-surf hover:text-hi transition-colors text-left border-t border-brd/50"
+        >
+          <DatabaseIcon size={11} className="text-sec/60 flex-none" />
+          <span>Ungrouped</span>
+        </button>
+      )}
+      {(!tree || tree.folders.filter((f) => f.projectId !== currentProjectId).length === 0) && !currentProjectId && (
+        <p className="px-3 py-1.5 text-2xs text-muted italic">No folders yet</p>
+      )}
+    </div>
+  )
 }
 
 // ── Single session row ───────────────────────────────────────────
@@ -27,12 +90,22 @@ function SessionRow({
   session: SessionSummary
   indent?: boolean
 }) {
-  const activeId      = useAppStore((s) => s.sessionId)
-  const deleteSession = useDeleteSession()
-  const [editName, setEditName] = useState('')
+  const activeId       = useAppStore((s) => s.sessionId)
+  const deleteSession  = useDeleteSession()
+  const renameSession  = useRenameSession()
+  const [editName, setEditName] = useState(session.name)
   const [editing,  setEditing]  = useState(false)
+  const [showMove, setShowMove] = useState(false)
 
   const isActive = session.sessionId === activeId
+
+  const commitRename = () => {
+    const trimmed = editName.trim()
+    if (trimmed && trimmed !== session.name) {
+      renameSession.mutate({ sessionId: session.sessionId, name: trimmed })
+    }
+    setEditing(false)
+  }
 
   const open = () => {
     if (isActive) return
@@ -72,9 +145,10 @@ function SessionRow({
           autoFocus
           value={editName}
           onChange={(e) => setEditName(e.target.value)}
-          onBlur={() => setEditing(false)}
+          onBlur={commitRename}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === 'Escape') setEditing(false)
+            if (e.key === 'Enter') commitRename()
+            if (e.key === 'Escape') { setEditName(session.name); setEditing(false) }
           }}
           onClick={(e) => e.stopPropagation()}
           className="flex-1 min-w-0 bg-transparent border-b border-acc/60 outline-none text-hi text-sm"
@@ -89,6 +163,20 @@ function SessionRow({
 
       <div className="hidden group-hover:flex items-center gap-0.5 absolute right-1 bg-panel rounded px-0.5">
         <button
+          onClick={(e) => { e.stopPropagation(); setEditName(session.name); setEditing(true) }}
+          className="p-0.5 rounded hover:bg-surf text-sec hover:text-hi"
+          title="Rename chat"
+        >
+          <PencilIcon size={10} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowMove(true) }}
+          className="p-0.5 rounded hover:bg-acc/20 text-sec hover:text-acc"
+          title="Move to folder"
+        >
+          <FolderInputIcon size={10} />
+        </button>
+        <button
           onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${session.name}"?`)) deleteSession.mutate(session.sessionId) }}
           className="p-0.5 rounded hover:bg-red-500/20 text-sec hover:text-red-400"
           title="Delete chat"
@@ -96,6 +184,15 @@ function SessionRow({
           <Trash2Icon size={10} />
         </button>
       </div>
+
+      {/* Move-to-folder dropdown */}
+      {showMove && (
+        <MoveToMenu
+          sessionId={session.sessionId}
+          currentProjectId={session.projectId}
+          onClose={() => setShowMove(false)}
+        />
+      )}
     </motion.div>
   )
 }
