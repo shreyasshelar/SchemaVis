@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore, useAuthHydrated } from '@/store/authStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   DatabaseIcon, SparklesIcon, MessageSquareIcon, ZapIcon,
@@ -42,7 +42,9 @@ const NAV_LINKS = [
 
 function DocsNav() {
   const [open, setOpen] = useState(false)
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hydrated        = useAuthHydrated()
+  const rawAuth         = useAuthStore((s) => s.isAuthenticated)
+  const isAuthenticated = hydrated && rawAuth
 
   return (
     <nav className="sticky top-0 z-50 bg-app/95 backdrop-blur-xl border-b border-brd">
@@ -64,9 +66,12 @@ function DocsNav() {
           ))}
         </div>
 
-        {/* Desktop CTAs */}
+        {/* Desktop CTAs — hidden until auth store hydrates from localStorage */}
         <div className="hidden sm:flex items-center gap-2">
-          {isAuthenticated ? (
+          {!hydrated ? (
+            /* Placeholder so the nav doesn't shift after hydration */
+            <div className="h-8 w-20" />
+          ) : isAuthenticated ? (
             <Link to="/" className="inline-flex items-center gap-1.5 h-8 px-4 text-xs rounded-lg bg-acc hover:bg-accD text-white font-semibold transition-colors">
               ← Back to app
             </Link>
@@ -80,7 +85,7 @@ function DocsNav() {
 
         {/* Mobile: back-to-app or sign in + hamburger */}
         <div className="flex sm:hidden items-center gap-2">
-          {isAuthenticated ? (
+          {!hydrated ? null : isAuthenticated ? (
             <Link to="/" className="text-xs text-acc font-medium hover:text-accD transition-colors">← App</Link>
           ) : (
             <Link to="/login" className="text-xs text-sec hover:text-hi transition-colors">Sign in</Link>
@@ -115,7 +120,7 @@ function DocsNav() {
                   {l.label}
                 </a>
               ))}
-              {isAuthenticated ? (
+              {hydrated && (isAuthenticated ? (
                 <Link
                   to="/"
                   onClick={() => setOpen(false)}
@@ -131,7 +136,7 @@ function DocsNav() {
                 >
                   Get started free
                 </Link>
-              )}
+              ))}
             </div>
           </motion.div>
         )}
@@ -144,7 +149,8 @@ function DocsNav() {
 // Hero
 // ─────────────────────────────────────────────────────────────────
 function Hero() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hydrated        = useAuthHydrated()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated) && hydrated
   return (
     <section className="relative flex flex-col items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
       {/* Background glow */}
@@ -197,7 +203,10 @@ function Hero() {
           transition={{ duration: 0.5, delay: 0.3 }}
           className="flex flex-wrap items-center justify-center gap-3"
         >
-          {isAuthenticated ? (
+          {!hydrated ? (
+            /* Reserve space while localStorage hydrates — prevents layout shift */
+            <div className="h-10 w-36 rounded-xl bg-acc/40 animate-pulse" />
+          ) : isAuthenticated ? (
             <Link
               to="/"
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-acc hover:bg-accD text-white font-semibold text-sm transition-colors shadow-glow"
@@ -1012,7 +1021,8 @@ function Artifacts() {
 // CTA
 // ─────────────────────────────────────────────────────────────────
 function CTA() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hydrated        = useAuthHydrated()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated) && hydrated
   return (
     <section className="py-16 px-6">
       <div className="max-w-2xl mx-auto text-center">
@@ -1039,7 +1049,9 @@ function CTA() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                {isAuthenticated ? (
+                {!hydrated ? (
+                  <div className="h-11 w-44 rounded-xl bg-acc/40 animate-pulse" />
+                ) : isAuthenticated ? (
                   <Link
                     to="/"
                     className="flex items-center gap-2 px-7 py-3 rounded-xl bg-acc hover:bg-accD text-white font-bold text-sm transition-colors shadow-glow"
@@ -1075,7 +1087,8 @@ function CTA() {
 // Footer
 // ─────────────────────────────────────────────────────────────────
 function Footer() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hydrated        = useAuthHydrated()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated) && hydrated
   return (
     <footer className="border-t border-brd bg-panel/40 py-12 px-6">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
@@ -1091,7 +1104,7 @@ function Footer() {
 
         <div className="flex items-center gap-6 text-xs text-sec">
           <Link to="/" className="hover:text-hi transition-colors">App</Link>
-          {!isAuthenticated && (
+          {hydrated && !isAuthenticated && (
             <Link to="/register" className="hover:text-hi transition-colors">Register</Link>
           )}
           <a href="/docs/architecture.html" className="hover:text-hi transition-colors">Architecture</a>

@@ -72,6 +72,19 @@ export function useSessionDetail(sessionId: string | null) {
   return query
 }
 
+// ── Rename session ────────────────────────────────────────────────
+export function useRenameSession() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ sessionId, name }: { sessionId: string; name: string }) =>
+      sessionsApi.rename(sessionId, name),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: folderKeys.tree })
+    },
+  })
+}
+
 // ── Delete session ────────────────────────────────────────────────
 export function useDeleteSession() {
   const { resetSession } = useAppStore()
