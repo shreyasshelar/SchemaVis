@@ -108,6 +108,29 @@ public class SessionController {
         return ResponseEntity.noContent().build();
     }
 
+    // ── POST /api/sessions/{id}/complete ─────────────────────
+    // Explicitly mark (or un-mark) a session as schema-complete.
+    // Only called when the user clicks "Mark complete" in the approval banner.
+    // The AI's [COMPLETE] signal alone does NOT call this endpoint.
+
+    @PostMapping("/{id}/complete")
+    @Operation(
+            summary = "Mark schema as complete (user-confirmed)",
+            description = "Sets schemaComplete=true only when the user explicitly approves. " +
+                          "Pass complete=false to revert (e.g. user continues refining)."
+    )
+    @ApiResponse(responseCode = "204", description = "Updated")
+    @ApiResponse(responseCode = "403", description = "Session belongs to another user")
+    @ApiResponse(responseCode = "404", description = "Session not found")
+    public ResponseEntity<Void> markComplete(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "true") boolean complete,
+            @AuthenticationPrincipal User user
+    ) {
+        chatService.markComplete(id, user.getId(), complete);
+        return ResponseEntity.noContent().build();
+    }
+
     // ── PUT /api/sessions/{id}/project ───────────────────────
     // Move a session into a folder, or ungroup it (projectId = null).
 

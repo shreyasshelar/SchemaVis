@@ -105,12 +105,14 @@ public class ChatService {
         Message aiMessage = Message.of("assistant", rawReply);
         session.addMessage(aiMessage);
 
-        // Extract diagram and completion state
+        // Extract diagram. Never auto-mark as complete — that requires explicit user approval.
         String diagram = diagramParser.extractDiagram(rawReply).orElse(null);
         if (diagram != null) session.setCurrentDiagram(diagram);
 
+        // Detect [COMPLETE] signal from AI so the frontend can show the approval banner,
+        // but do NOT persist schemaComplete=true here — only the user can confirm that.
         boolean complete = diagramParser.isComplete(rawReply);
-        session.setSchemaComplete(complete);
+        // Brand-new sessions are never immediately complete; leave schemaComplete=false.
         session.touch();
 
         sessionRepository.save(session);
@@ -150,8 +152,11 @@ public class ChatService {
         String newDiagram = diagramParser.extractDiagram(rawReply).orElse(null);
         if (newDiagram != null) session.setCurrentDiagram(newDiagram);
 
+        // Detect [COMPLETE] signal from AI for the approval banner.
+        // Reset schemaComplete to false — the user is actively messaging, so they have
+        // not yet (or are no longer) confirming completion. Only markComplete() sets it true.
         boolean complete = diagramParser.isComplete(rawReply);
-        session.setSchemaComplete(complete);
+        session.setSchemaComplete(false);
         session.touch();
 
         sessionRepository.save(session);
@@ -187,6 +192,20 @@ public class ChatService {
                 session.isSchemaComplete(),
                 dtos
         );
+    }
+
+    // ── Mark / un-mark schema as complete ────────────────────
+    // Called only when the user explicitly clicks "Mark complete" (or reverts).
+    // This is the ONLY place that persists schemaComplete=true to the database;
+    // the AI's [COMPLETE] signal alone never auto-sets it.
+
+    @Transactional
+    public void markComplete(String sessionId, String userId, boolean complete) {
+        Session session = requireOwned(sessionId, userId);
+        session.setSchemaComplete(complete);
+        session.touch();
+        sessionRepository.save(session);
+        log.info("Session {} schemaComplete set to {} by user {}", sessionId, complete, userId);
     }
 
     // ── Delete session ────────────────────────────────────────
