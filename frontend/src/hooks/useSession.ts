@@ -85,6 +85,21 @@ export function useRenameSession() {
   })
 }
 
+// ── Mark schema complete (user-confirmed) ─────────────────────────
+// Only called from the CompleteApprovalBanner when user clicks "Mark complete".
+// Persists schemaComplete=true to the server and refreshes the sidebar badge.
+export function useMarkComplete() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ sessionId, complete }: { sessionId: string; complete?: boolean }) =>
+      sessionsApi.markComplete(sessionId, complete),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: folderKeys.tree })
+    },
+  })
+}
+
 // ── Delete session ────────────────────────────────────────────────
 export function useDeleteSession() {
   const { resetSession } = useAppStore()

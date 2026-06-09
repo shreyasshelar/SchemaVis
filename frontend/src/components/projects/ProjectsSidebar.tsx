@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  PlusIcon, FolderOpenIcon, FolderIcon, CheckCircle2Icon,
+  PlusIcon, FolderIcon, CheckCircle2Icon,
   PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronDownIcon,
   ChevronRightIcon, DatabaseIcon, FolderPlusIcon, MessageSquarePlusIcon,
-  FolderInputIcon,
+  FolderInputIcon, FileCode2Icon,
 } from 'lucide-react'
 import {
   useFolderTree, useCreateFolder, useRenameFolder,
@@ -136,8 +136,8 @@ function SessionRow({
     >
       <div className="flex-none">
         {isActive
-          ? <FolderOpenIcon size={13} className="text-acc" />
-          : <DatabaseIcon   size={13} />}
+          ? <FileCode2Icon size={13} className="text-acc" />
+          : <DatabaseIcon  size={13} />}
       </div>
 
       {editing ? (

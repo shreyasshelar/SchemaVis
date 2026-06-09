@@ -36,4 +36,14 @@ export const sessionsApi = {
     apiClient
       .delete(`/api/sessions/${sessionId}`)
       .then(() => undefined as void),
+
+  /**
+   * Explicitly mark (or un-mark) a schema as complete.
+   * Must be called only when the user clicks "Mark complete" in the approval banner.
+   * The AI's [COMPLETE] signal alone does NOT call this.
+   */
+  markComplete: (sessionId: string, complete = true) =>
+    apiClient
+      .post(`/api/sessions/${sessionId}/complete?complete=${complete}`)
+      .then(() => undefined as void),
 }

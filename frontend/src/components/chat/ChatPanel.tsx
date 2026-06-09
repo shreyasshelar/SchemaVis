@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircleIcon, XIcon } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
-import { useSessionDetail } from '@/hooks/useSession'
+import { useSessionDetail, useMarkComplete } from '@/hooks/useSession'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { WelcomeScreen } from './WelcomeScreen'
@@ -9,10 +9,16 @@ import { Spinner } from '@/components/ui/Spinner'
 
 // ── Schema-complete approval banner ──────────────────────────────
 // Shown when the AI signals [COMPLETE] but user hasn't approved yet.
+// Only "Mark complete" persists schemaComplete=true to the backend.
 function CompleteApprovalBanner() {
-  const { pendingComplete, setPendingComplete, setPhase } = useAppStore()
+  const { sessionId, pendingComplete, setPendingComplete, setPhase } = useAppStore()
+  const markComplete = useMarkComplete()
 
   const approve = () => {
+    // Persist to backend first, then update local UI state
+    if (sessionId) {
+      markComplete.mutate({ sessionId, complete: true })
+    }
     setPhase('complete')
     setPendingComplete(false)
   }
@@ -53,10 +59,11 @@ function CompleteApprovalBanner() {
           <div className="flex gap-2">
             <button
               onClick={approve}
+              disabled={markComplete.isPending}
               className="flex-1 h-7 rounded-lg bg-ok/20 border border-ok/35 text-xs text-ok
-                         font-medium hover:bg-ok/30 transition-colors"
+                         font-medium hover:bg-ok/30 transition-colors disabled:opacity-60"
             >
-              ✓ Mark complete
+              {markComplete.isPending ? '…' : '✓ Mark complete'}
             </button>
             <button
               onClick={dismiss}
