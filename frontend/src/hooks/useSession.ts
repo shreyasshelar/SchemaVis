@@ -37,8 +37,21 @@ export function useCreateSession() {
 // ── Fetch session detail (rehydrate on project switch or page refresh) ──
 export function useSessionDetail(sessionId: string | null) {
   const { startSession, updateDiagram, setPhase } = useAppStore()
-  // Track which sessionId we've already restored so re-fetches don't overwrite active chat
+
+  // Tracks the last sessionId we successfully restored into the store.
+  // Guards against background refetches overwriting in-progress chat for the
+  // CURRENT session, while still allowing re-restoration when the user
+  // switches to a different session (including switching back to a cached one).
   const restoredForRef = useRef<string | null>(null)
+
+  // Detect session switches during render and reset the guard so the next
+  // data arrival (even from cache) always restores the new session.
+  // This is the safe "derived state during render" pattern (React docs).
+  const prevSessionIdRef = useRef<string | null>(null)
+  if (prevSessionIdRef.current !== sessionId) {
+    prevSessionIdRef.current = sessionId
+    restoredForRef.current = null
+  }
 
   const query = useQuery({
     queryKey: sessionKeys.detail(sessionId ?? ''),
@@ -50,7 +63,10 @@ export function useSessionDetail(sessionId: string | null) {
   useEffect(() => {
     if (!query.data) return
     const data = query.data
-    // Skip if we already restored this session (prevents overwriting in-progress chat)
+    // Skip background refetches for the already-restored session so they
+    // don't overwrite optimistic messages mid-chat.
+    // NOTE: restoredForRef is reset to null above whenever sessionId changes,
+    // so this guard never blocks a genuine session switch.
     if (data.sessionId === restoredForRef.current) return
     restoredForRef.current = data.sessionId
 
@@ -66,8 +82,11 @@ export function useSessionDetail(sessionId: string | null) {
     } else {
       useAppStore.setState({ phase: 'chatting' })
     }
+  // sessionId in deps: re-runs the effect whenever the session changes, even
+  // when query.data is the same cached reference (fixes the "blank chat on
+  // second switch" bug where React Query returns a cached object unchanged).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query.data])
+  }, [query.data, sessionId])
 
   return query
 }
