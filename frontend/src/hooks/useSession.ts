@@ -75,10 +75,17 @@ export function useSessionDetail(sessionId: string | null) {
     if (useAppStore.getState().isSending) return
     restoredForRef.current = data.sessionId
 
-    const msgs = data.messages.map((m) => ({
-      ...m,
-      role: m.role as 'user' | 'assistant',
-    }))
+    // Deduplicate server messages by content+role+minute — guards against DB
+    // duplicates created by old buggy restoration code that re-sent messages.
+    const seen = new Set<string>()
+    const msgs = data.messages
+      .map((m) => ({ ...m, role: m.role as 'user' | 'assistant' }))
+      .filter((m) => {
+        const key = `${m.role}:${(m.content ?? '').substring(0, 80)}:${new Date(m.createdAt).toISOString().substring(0, 16)}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
     if (msgs.length > 0) {
       startSession(data.sessionId, msgs[0], data.currentDiagram)
       msgs.slice(1).forEach((m) => useAppStore.getState().appendMessage(m))
