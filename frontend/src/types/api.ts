@@ -45,6 +45,7 @@ export interface MessageDto {
   role:      'user' | 'assistant'
   content:   string
   createdAt: string
+  isError?:  boolean   // local-only flag, never from API
 }
 
 export interface SessionDetailResponse {

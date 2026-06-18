@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
-import { SparklesIcon, NetworkIcon } from 'lucide-react'
+import { SparklesIcon, NetworkIcon, AlertCircleIcon, RefreshCwIcon } from 'lucide-react'
 import type { MessageDto } from '@/types/api'
 
 // ── Inline renderer: **bold**, `code` ────────────────────────────
@@ -182,8 +182,15 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
     >
       {/* Avatar */}
       {!isUser && (
-        <div className="w-7 h-7 rounded-lg bg-acc/15 border border-acc/25 flex items-center justify-center flex-none mt-0.5">
-          <SparklesIcon size={13} className="text-acc" />
+        <div className={[
+          'w-7 h-7 rounded-lg flex items-center justify-center flex-none mt-0.5 border',
+          message.isError
+            ? 'bg-err/15 border-err/30'
+            : 'bg-acc/15 border-acc/25',
+        ].join(' ')}>
+          {message.isError
+            ? <AlertCircleIcon size={13} className="text-err" />
+            : <SparklesIcon size={13} className="text-acc" />}
         </div>
       )}
 
@@ -193,10 +200,23 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
           'max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
           isUser
             ? 'bg-uBg border border-acc/20 text-hi rounded-tr-sm'
-            : 'bg-aiBg border border-brd text-hi rounded-tl-sm',
+            : message.isError
+              ? 'bg-err/8 border border-err/25 text-hi rounded-tl-sm'
+              : 'bg-aiBg border border-brd text-hi rounded-tl-sm',
         ].join(' ')}
       >
-        {renderContent(message.content)}
+        {message.isError ? (
+          <div className="flex items-center gap-2 text-err/90">
+            <RefreshCwIcon size={12} className="flex-none" />
+            <span>{message.content}</span>
+          </div>
+        ) : isUser ? (
+          message.content.split('\n').map((line, i) => (
+            <p key={i} className={line === '' ? 'h-3' : ''}>{line}</p>
+          ))
+        ) : (
+          renderContent(message.content)
+        )}
 
         <time className="block mt-1.5 text-2xs text-muted text-right">
           {new Date(message.createdAt).toLocaleTimeString([], {
