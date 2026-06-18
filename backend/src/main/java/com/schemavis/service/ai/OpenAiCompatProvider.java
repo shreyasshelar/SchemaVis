@@ -78,7 +78,7 @@ public abstract class OpenAiCompatProvider implements AiProvider {
             root.put("model",       getModel());
             root.set("messages",    msgArray);
             root.put("temperature", 0.3);
-            root.put("max_tokens",  2048);
+            root.put("max_tokens",  8192);
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to build " + getName() + " request", e);
