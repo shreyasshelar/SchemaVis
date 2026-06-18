@@ -28,18 +28,24 @@ function renderInline(text: string): React.ReactNode {
   })
 }
 
-// ── Full markdown renderer ────────────────────────────────────────
-// Handles: [DIAGRAM]...[/DIAGRAM] blocks, [COMPLETE], **bold**,
-// `code`, - lists, * lists (nested), ### headings
-function renderContent(content: string): React.ReactNode {
-  // 1. Detect & strip [DIAGRAM]...[/DIAGRAM] blocks
-  const hasDiagram = /\[DIAGRAM\][\s\S]*?\[\/DIAGRAM\]/i.test(content)
-  let text = content
-    .replace(/\[DIAGRAM\][\s\S]*?\[\/DIAGRAM\]/gi, '')
-    .replace(/\[COMPLETE\]/gi, '')
-    .replace(/\[\/COMPLETE\]/gi, '')
-    .trim()
+// ── Fenced code block renderer ───────────────────────────────────
+function CodeBlock({ lang, code }: { lang: string; code: string }) {
+  return (
+    <div className="my-2 rounded-lg overflow-hidden border border-brd/60 text-[0.75rem] font-mono">
+      {lang && (
+        <div className="px-3 py-1 bg-surf/60 border-b border-brd/40 text-muted text-[0.68rem] uppercase tracking-wide">
+          {lang}
+        </div>
+      )}
+      <pre className="px-3 py-2.5 overflow-x-auto bg-surf/30 text-sec leading-relaxed whitespace-pre">
+        {code.trim()}
+      </pre>
+    </div>
+  )
+}
 
+// ── Prose block renderer (lines within a non-code segment) ────────
+function renderProse(text: string, keyPrefix: string): React.ReactNode[] {
   const lines = text.split('\n')
   const elements: React.ReactNode[] = []
   let listBuffer: Array<{ indent: number; text: string }> = []
@@ -71,14 +77,13 @@ function renderContent(content: string): React.ReactNode {
       continue
     }
 
-    if (listBuffer.length > 0) flushList(`list-${i}`)
+    if (listBuffer.length > 0) flushList(`${keyPrefix}-list-${i}`)
 
     if (raw.trim() === '') {
-      elements.push(<div key={`gap-${i}`} className="h-2" />)
+      elements.push(<div key={`${keyPrefix}-gap-${i}`} className="h-2" />)
       continue
     }
 
-    // Headings
     const headingMatch = raw.match(/^(#{1,3})\s+(.+)$/)
     if (headingMatch) {
       const level = headingMatch[1].length
@@ -89,24 +94,62 @@ function renderContent(content: string): React.ReactNode {
             ? 'font-semibold text-[0.82rem] text-hi mt-1.5 mb-0.5'
             : 'font-semibold text-[0.78rem] text-hi/80 mt-1 mb-0.5 uppercase tracking-wide'
       elements.push(
-        <p key={i} className={cls}>
+        <p key={`${keyPrefix}-h-${i}`} className={cls}>
           {renderInline(headingMatch[2])}
         </p>,
       )
       continue
     }
 
-    // Normal line
     elements.push(
-      <p key={i} className="leading-relaxed">
+      <p key={`${keyPrefix}-p-${i}`} className="leading-relaxed">
         {renderInline(raw)}
       </p>,
     )
   }
 
-  if (listBuffer.length > 0) flushList('list-end')
+  if (listBuffer.length > 0) flushList(`${keyPrefix}-list-end`)
+  return elements
+}
 
-  // Diagram badge at the bottom
+// ── Full markdown renderer ────────────────────────────────────────
+// Handles: [DIAGRAM]...[/DIAGRAM], [COMPLETE], fenced code blocks,
+// **bold**, `code`, - lists, * lists (nested), ### headings
+function renderContent(content: string): React.ReactNode {
+  // 1. Strip [DIAGRAM] and [COMPLETE] markers
+  const hasDiagram = /\[DIAGRAM\][\s\S]*?\[\/DIAGRAM\]/i.test(content)
+  const text = content
+    .replace(/\[DIAGRAM\][\s\S]*?\[\/DIAGRAM\]/gi, '')
+    .replace(/\[COMPLETE\]/gi, '')
+    .replace(/\[\/COMPLETE\]/gi, '')
+    .trim()
+
+  // 2. Split on fenced code blocks (```lang\n...```)
+  const fenceRe = /^```(\w*)\n([\s\S]*?)^```/gm
+  const elements: React.ReactNode[] = []
+  let lastIndex = 0
+  let blockIdx = 0
+  let match: RegExpExecArray | null
+
+  while ((match = fenceRe.exec(text)) !== null) {
+    // Prose before this code block
+    const prose = text.slice(lastIndex, match.index)
+    if (prose.trim()) {
+      elements.push(...renderProse(prose, `prose-${blockIdx}`))
+    }
+    // Code block
+    elements.push(<CodeBlock key={`code-${blockIdx}`} lang={match[1]} code={match[2]} />)
+    lastIndex = match.index + match[0].length
+    blockIdx++
+  }
+
+  // Remaining prose after last code block
+  const tail = text.slice(lastIndex)
+  if (tail.trim()) {
+    elements.push(...renderProse(tail, `prose-${blockIdx}`))
+  }
+
+  // 3. Diagram badge
   if (hasDiagram) {
     elements.push(
       <div
@@ -153,15 +196,7 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
             : 'bg-aiBg border border-brd text-hi rounded-tl-sm',
         ].join(' ')}
       >
-        {isUser
-          ? // User messages: plain text with line breaks
-            message.content.split('\n').map((line, i) => (
-              <p key={i} className={line === '' ? 'h-3' : ''}>
-                {line}
-              </p>
-            ))
-          : // AI messages: full markdown render
-            renderContent(message.content)}
+        {renderContent(message.content)}
 
         <time className="block mt-1.5 text-2xs text-muted text-right">
           {new Date(message.createdAt).toLocaleTimeString([], {
