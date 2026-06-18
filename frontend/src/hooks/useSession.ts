@@ -54,10 +54,11 @@ export function useSessionDetail(sessionId: string | null) {
   }
 
   const query = useQuery({
-    queryKey: sessionKeys.detail(sessionId ?? ''),
-    queryFn:  () => sessionsApi.get(sessionId!),
-    enabled:   !!sessionId,
-    staleTime: 30_000,
+    queryKey:           sessionKeys.detail(sessionId ?? ''),
+    queryFn:            () => sessionsApi.get(sessionId!),
+    enabled:            !!sessionId,
+    staleTime:          30_000,
+    refetchOnWindowFocus: false,   // never clobber optimistic messages on focus
   })
 
   useEffect(() => {
@@ -68,6 +69,10 @@ export function useSessionDetail(sessionId: string | null) {
     // NOTE: restoredForRef is reset to null above whenever sessionId changes,
     // so this guard never blocks a genuine session switch.
     if (data.sessionId === restoredForRef.current) return
+
+    // Also skip if a message send is in flight — cancelQueries in useChat
+    // should prevent this, but guard defensively.
+    if (useAppStore.getState().isSending) return
     restoredForRef.current = data.sessionId
 
     const msgs = data.messages.map((m) => ({
