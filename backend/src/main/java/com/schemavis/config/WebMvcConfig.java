@@ -14,7 +14,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
     static final List<String> ALLOWED_ORIGINS = List.of(
             "http://localhost:5173",
             "http://localhost:4173",
-            "https://schemavis.shreyasshelar.uk"
+            "https://schemavis.shreyasshelar.uk",
+            "https://dev.schemavis.shreyasshelar.uk"
     );
 
     // Lambda form — no path-matching logic, applies to every request.
