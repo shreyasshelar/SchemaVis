@@ -18,7 +18,7 @@ export function useChat() {
       return messagesApi.send(sessionId, { content })
     },
 
-    onMutate: async () => {
+    onMutate: async (content) => {
       // Cancel any in-flight session detail refetch so it can't overwrite
       // the optimistic user message with stale server data.
       if (sessionId) {
@@ -35,6 +35,14 @@ export function useChat() {
       if (phase === 'complete') setPhase('chatting')
       // Dismiss any pending-complete banner left over from a previous response.
       setPendingComplete(false)
+
+      // Optimistically show the user's message immediately.
+      appendMessage({
+        id: crypto.randomUUID(),
+        role: 'user',
+        content,
+        createdAt: new Date().toISOString(),
+      })
 
       // Return the session this mutation was fired for so callbacks can
       // guard against stale results landing in a different session.
