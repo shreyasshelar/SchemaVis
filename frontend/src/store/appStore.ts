@@ -26,6 +26,7 @@ interface AppState {
   // Actions
   startSession: (sessionId: string, firstMessage: MessageDto, diagram: string | null) => void
   appendMessage: (msg: MessageDto) => void
+  removeErrorMessages: () => void
   updateDiagram: (diagram: string) => void
   setPhase: (phase: UIPhase) => void
   setIsSending: (v: boolean) => void
@@ -56,6 +57,9 @@ export const useAppStore = create<AppState>()(
 
       appendMessage: (msg) =>
         set((s) => ({ messages: [...s.messages, msg] })),
+
+      removeErrorMessages: () =>
+        set((s) => ({ messages: s.messages.filter((m) => !m.isError) })),
 
       updateDiagram: (diagram) =>
         set({ diagram }),

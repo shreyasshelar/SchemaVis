@@ -15,12 +15,13 @@ function CompleteApprovalBanner() {
   const markComplete = useMarkComplete()
 
   const approve = () => {
-    // Persist to backend first, then update local UI state
-    if (sessionId) {
-      markComplete.mutate({ sessionId, complete: true })
-    }
-    setPhase('complete')
-    setPendingComplete(false)
+    if (!sessionId) return
+    markComplete.mutate({ sessionId, complete: true }, {
+      onSuccess: () => {
+        setPhase('complete')
+        setPendingComplete(false)
+      },
+    })
   }
   const dismiss = () => {
     setPendingComplete(false)
@@ -83,7 +84,7 @@ function CompleteApprovalBanner() {
 export function ChatPanel() {
   const { phase, sessionId } = useAppStore()
   // Always call before any early return — restores messages + diagram on project switch
-  const { isLoading } = useSessionDetail(sessionId)
+  const { isLoading, isError } = useSessionDetail(sessionId)
 
   if (phase === 'idle') {
     return (
@@ -97,6 +98,15 @@ export function ChatPanel() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <Spinner size={20} className="text-sec" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
+        <p className="text-sm text-err">Failed to load session</p>
+        <p className="text-xs text-muted">Check your connection and refresh the page</p>
       </div>
     )
   }
