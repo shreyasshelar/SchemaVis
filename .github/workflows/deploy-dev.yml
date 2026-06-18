@@ -1,0 +1,143 @@
+name: Deploy — Dev (GCP Cloud Run)
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_ID:          aegispay
+  REGION:              us-central1
+  REGISTRY:            us-central1-docker.pkg.dev/aegispay/schema-vis
+  BACKEND_SERVICE:     schema-vis-backend-dev
+  FRONTEND_SERVICE:    schema-vis-frontend-dev
+  CLOUD_SQL_INSTANCE:  aegispay:us-central1:schema-vis-dev
+  CLOUD_RUN_SA:        cloud-run-backend-sa@aegispay.iam.gserviceaccount.com
+
+jobs:
+  # ── CI gate — same checks as main ──────────────────────────────
+  ci:
+    name: CI gate
+    uses: ./.github/workflows/ci.yml
+
+  # ── Build & deploy ──────────────────────────────────────────────
+  deploy:
+    name: Build & Deploy to Cloud Run
+    needs: ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          TS=$(date -u +%Y%m%d%H%M%S)
+          SHA=$(git rev-parse --short HEAD)
+          echo "value=${TS}-sha-${SHA}" >> $GITHUB_OUTPUT
+
+      # ── Backend ────────────────────────────────────────────────
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file:    ./backend/Dockerfile
+          push:    true
+          tags:    ${{ env.REGISTRY }}/backend:${{ steps.tag.outputs.value }}
+          cache-from: type=gha,scope=dev-backend
+          cache-to:   type=gha,scope=dev-backend,mode=max
+
+      - name: Deploy backend to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.BACKEND_SERVICE }} \
+            --image="${{ env.REGISTRY }}/backend:${{ steps.tag.outputs.value }}" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --service-account="${{ env.CLOUD_RUN_SA }}" \
+            --add-cloudsql-instances="${{ env.CLOUD_SQL_INSTANCE }}" \
+            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,SPRING_DATASOURCE_URL=jdbc:postgresql:///schemavis?cloudSqlInstance=${{ env.CLOUD_SQL_INSTANCE }}&socketFactory=com.google.cloud.sql.postgres.SocketFactory,SPRING_DATASOURCE_USERNAME=schemavis,RATE_LIMIT=20" \
+            --set-env-vars="SPRING_DATASOURCE_PASSWORD=${{ secrets.DEV_DB_PASSWORD }},JWT_SECRET=${{ secrets.DEV_JWT_SECRET }},GEMINI_API_KEY=${{ secrets.DEV_GEMINI_API_KEY }},GROQ_API_KEY=${{ secrets.DEV_GROQ_API_KEY }},OPENROUTER_API_KEY=${{ secrets.DEV_OPENROUTER_API_KEY }}" \
+            --memory=512Mi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --port=8080 \
+            --timeout=300
+
+      - name: Get backend URL
+        id: backend
+        run: |
+          URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --format='value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Backend URL: $URL"
+
+      # ── Frontend ───────────────────────────────────────────────
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file:    ./frontend/Dockerfile
+          push:    true
+          tags:    ${{ env.REGISTRY }}/frontend:${{ steps.tag.outputs.value }}
+          cache-from: type=gha,scope=dev-frontend
+          cache-to:   type=gha,scope=dev-frontend,mode=max
+
+      - name: Deploy frontend to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.FRONTEND_SERVICE }} \
+            --image="${{ env.REGISTRY }}/frontend:${{ steps.tag.outputs.value }}" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars="BACKEND_URL=${{ steps.backend.outputs.url }}" \
+            --memory=256Mi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=2 \
+            --port=80
+
+      - name: Get frontend URL
+        id: frontend
+        run: |
+          URL=$(gcloud run services describe ${{ env.FRONTEND_SERVICE }} \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --format='value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "### Dev deployment complete" >> $GITHUB_STEP_SUMMARY
+          echo "| Service  | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ steps.frontend.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend  | ${{ steps.backend.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image tag | \`${{ steps.tag.outputs.value }}\` |" >> $GITHUB_STEP_SUMMARY

@@ -51,6 +51,13 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!-- ── Cloud SQL socket factory (Cloud Run → Cloud SQL) ── -->
+    <dependency>
+      <groupId>com.google.cloud.sql</groupId>
+      <artifactId>postgres-socket-factory</artifactId>
+      <version>1.20.1</version>
+    </dependency>
+
     <!-- ── Flyway + PostgreSQL dialect ────────────────────── -->
     <dependency>
       <groupId>org.flywaydb</groupId>
