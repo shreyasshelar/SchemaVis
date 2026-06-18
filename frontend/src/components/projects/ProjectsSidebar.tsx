@@ -6,11 +6,12 @@ import {
   ChevronRightIcon, DatabaseIcon, FolderPlusIcon, MessageSquarePlusIcon,
   FolderInputIcon, FileCode2Icon,
 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   useFolderTree, useCreateFolder, useRenameFolder,
   useDeleteFolder, useMoveSession,
 } from '@/hooks/useFolders'
-import { useCreateSession, useDeleteSession, useRenameSession } from '@/hooks/useSession'
+import { useCreateSession, useDeleteSession, useRenameSession, sessionKeys } from '@/hooks/useSession'
 import { useAppStore } from '@/store/appStore'
 import { Spinner } from '@/components/ui/Spinner'
 import type { SessionSummary, FolderSummary } from '@/types/api'
@@ -93,6 +94,7 @@ function SessionRow({
   const activeId       = useAppStore((s) => s.sessionId)
   const deleteSession  = useDeleteSession()
   const renameSession  = useRenameSession()
+  const qc             = useQueryClient()
   const [editName, setEditName] = useState(session.name)
   const [editing,  setEditing]  = useState(false)
   const [showMove, setShowMove] = useState(false)
@@ -109,6 +111,10 @@ function SessionRow({
 
   const open = () => {
     if (isActive) return
+    // Remove stale cache so the restoration in useSessionDetail always waits
+    // for fresh server data — never restores from a cache snapshot that predates
+    // messages the user sent earlier in this session.
+    qc.removeQueries({ queryKey: sessionKeys.detail(session.sessionId) })
     useAppStore.setState({
       sessionId:       session.sessionId,
       messages:        [],

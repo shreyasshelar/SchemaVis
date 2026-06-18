@@ -56,7 +56,9 @@ export const useAppStore = create<AppState>()(
         }),
 
       appendMessage: (msg) =>
-        set((s) => ({ messages: [...s.messages, msg] })),
+        set((s) => s.messages.some((m) => m.id === msg.id)
+          ? s
+          : { messages: [...s.messages, msg] }),
 
       removeErrorMessages: () =>
         set((s) => ({ messages: s.messages.filter((m) => !m.isError) })),
