@@ -7,7 +7,8 @@ import type { MessageDto } from '@/types/api'
 export function useChat() {
   const {
     sessionId, phase,
-    appendMessage, updateDiagram, setPhase, setIsSending, setPendingComplete,
+    appendMessage, removeErrorMessages, updateDiagram,
+    setPhase, setIsSending, setPendingComplete,
   } = useAppStore()
   const qc = useQueryClient()
 
@@ -17,7 +18,7 @@ export function useChat() {
       return messagesApi.send(sessionId, { content })
     },
 
-    onMutate: async (content) => {
+    onMutate: async () => {
       // Cancel any in-flight session detail refetch so it can't overwrite
       // the optimistic user message with stale server data.
       if (sessionId) {
@@ -26,24 +27,24 @@ export function useChat() {
 
       setIsSending(true)
 
+      // Clear any leftover error bubbles so a retry starts clean.
+      removeErrorMessages()
+
       // If the schema was previously marked complete and the user sends a new
       // message, revert to 'chatting' — they want to keep refining.
-      // The "Schema complete" badge disappears immediately so there's no confusion.
       if (phase === 'complete') setPhase('chatting')
-      // Also dismiss any pending-complete banner left over from a previous response.
+      // Dismiss any pending-complete banner left over from a previous response.
       setPendingComplete(false)
 
-      // Optimistically add user message
-      const userMsg: MessageDto = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content,
-        createdAt: new Date().toISOString(),
-      }
-      appendMessage(userMsg)
+      // Return the session this mutation was fired for so callbacks can
+      // guard against stale results landing in a different session.
+      return { mutationSessionId: sessionId }
     },
 
-    onSuccess: (data) => {
+    onSuccess: (data, _content, context) => {
+      // Discard if the user switched sessions before the response arrived.
+      if (useAppStore.getState().sessionId !== context?.mutationSessionId) return
+
       const assistantMsg: MessageDto = {
         id: data.messageId,
         role: 'assistant',
@@ -57,7 +58,10 @@ export function useChat() {
       if (data.complete) setPendingComplete(true)
     },
 
-    onError: () => {
+    onError: (_err, _content, context) => {
+      // Discard if the user switched sessions before the error arrived.
+      if (useAppStore.getState().sessionId !== context?.mutationSessionId) return
+
       appendMessage({
         id: crypto.randomUUID(),
         role: 'assistant',

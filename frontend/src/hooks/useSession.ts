@@ -131,8 +131,9 @@ export function useDeleteSession() {
 
   return useMutation({
     mutationFn: (sessionId: string) => sessionsApi.remove(sessionId),
-    onSuccess: () => {
-      resetSession()
+    onSuccess: (_data, deletedSessionId) => {
+      // Only clear the UI if the deleted session was the one being viewed.
+      if (useAppStore.getState().sessionId === deletedSessionId) resetSession()
       qc.invalidateQueries({ queryKey: folderKeys.tree })
     },
   })
