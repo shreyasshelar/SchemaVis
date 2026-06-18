@@ -28,6 +28,9 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.frontend.port }}
+          env:
+            - name: BACKEND_URL
+              value: {{ .Values.frontend.backendUrl | quote }}
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
           readinessProbe:

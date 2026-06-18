@@ -58,6 +58,7 @@ frontend:
       - ghcr-credentials
   replicaCount: 1
   port: 80
+  backendUrl: "http://schema-vis-backend:8080"
   resources:
     requests:
       memory: "64Mi"

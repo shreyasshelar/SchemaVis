@@ -11,11 +11,14 @@ RUN npm run build
 # ── Stage 2: Serve with nginx ────────────────────────────────────
 FROM nginx:1.27-alpine AS runtime
 
-# Remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf
 
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy as a template so the official nginx image runs envsubst at startup.
+# BACKEND_URL env var is substituted before nginx starts — used by Cloud Run.
+# For Kubernetes the helm chart sets BACKEND_URL=http://schema-vis-backend:8080
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
 
