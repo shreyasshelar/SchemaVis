@@ -49,6 +49,16 @@ export function useChat() {
       if (data.complete) setPendingComplete(true)
     },
 
+    onError: () => {
+      appendMessage({
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Something went wrong — please try again.',
+        createdAt: new Date().toISOString(),
+        isError: true,
+      })
+    },
+
     onSettled: () => {
       setIsSending(false)
     },
