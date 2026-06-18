@@ -210,10 +210,6 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
             <RefreshCwIcon size={12} className="flex-none" />
             <span>{message.content}</span>
           </div>
-        ) : isUser ? (
-          message.content.split('\n').map((line, i) => (
-            <p key={i} className={line === '' ? 'h-3' : ''}>{line}</p>
-          ))
         ) : (
           renderContent(message.content)
         )}

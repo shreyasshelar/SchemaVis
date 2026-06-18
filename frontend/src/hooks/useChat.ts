@@ -25,8 +25,6 @@ export function useChat() {
         await qc.cancelQueries({ queryKey: sessionKeys.detail(sessionId) })
       }
 
-      setIsSending(true)
-
       // Clear any leftover error bubbles so a retry starts clean.
       removeErrorMessages()
 
@@ -36,13 +34,15 @@ export function useChat() {
       // Dismiss any pending-complete banner left over from a previous response.
       setPendingComplete(false)
 
-      // Optimistically show the user's message immediately.
+      // Add the user message BEFORE setting isSending so it's always visible
+      // in the same render cycle that shows the typing indicator — never after.
       appendMessage({
         id: crypto.randomUUID(),
         role: 'user',
         content,
         createdAt: new Date().toISOString(),
       })
+      setIsSending(true)
 
       // Return the session this mutation was fired for so callbacks can
       // guard against stale results landing in a different session.
