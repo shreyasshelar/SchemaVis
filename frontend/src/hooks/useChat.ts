@@ -1,6 +1,7 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { messagesApi } from '@/api/messages'
 import { useAppStore } from '@/store/appStore'
+import { sessionKeys } from '@/hooks/useSession'
 import type { MessageDto } from '@/types/api'
 
 export function useChat() {
@@ -8,6 +9,7 @@ export function useChat() {
     sessionId, phase,
     appendMessage, updateDiagram, setPhase, setIsSending, setPendingComplete,
   } = useAppStore()
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: (content: string) => {
@@ -15,7 +17,13 @@ export function useChat() {
       return messagesApi.send(sessionId, { content })
     },
 
-    onMutate: (content) => {
+    onMutate: async (content) => {
+      // Cancel any in-flight session detail refetch so it can't overwrite
+      // the optimistic user message with stale server data.
+      if (sessionId) {
+        await qc.cancelQueries({ queryKey: sessionKeys.detail(sessionId) })
+      }
+
       setIsSending(true)
 
       // If the schema was previously marked complete and the user sends a new
