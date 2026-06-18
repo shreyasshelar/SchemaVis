@@ -110,7 +110,6 @@ public class GeminiService implements AiProvider {
             // Generation config
             ObjectNode genConfig = objectMapper.createObjectNode();
             genConfig.put("temperature", 0.3);
-            genConfig.put("maxOutputTokens", 8192);
             genConfig.put("topP", 0.9);
             root.set("generationConfig", genConfig);
 
