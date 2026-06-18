@@ -18,14 +18,12 @@ export function useChat() {
       return messagesApi.send(sessionId, { content })
     },
 
-    onMutate: async () => {
+    onMutate: async (content) => {
       // Cancel any in-flight session detail refetch so it can't overwrite
       // the optimistic user message with stale server data.
       if (sessionId) {
         await qc.cancelQueries({ queryKey: sessionKeys.detail(sessionId) })
       }
-
-      setIsSending(true)
 
       // Clear any leftover error bubbles so a retry starts clean.
       removeErrorMessages()
@@ -35,6 +33,16 @@ export function useChat() {
       if (phase === 'complete') setPhase('chatting')
       // Dismiss any pending-complete banner left over from a previous response.
       setPendingComplete(false)
+
+      // Add the user message BEFORE setting isSending so it's always visible
+      // in the same render cycle that shows the typing indicator — never after.
+      appendMessage({
+        id: crypto.randomUUID(),
+        role: 'user',
+        content,
+        createdAt: new Date().toISOString(),
+      })
+      setIsSending(true)
 
       // Return the session this mutation was fired for so callbacks can
       // guard against stale results landing in a different session.
