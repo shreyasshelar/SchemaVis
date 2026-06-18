@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { sessionsApi } from '@/api/sessions'
 import { useAppStore } from '@/store/appStore'
 import { folderKeys } from '@/hooks/useFolders'
-import type { NewSessionRequest, MessageDto } from '@/types/api'
+import type { NewSessionRequest, MessageDto, SessionDetailResponse } from '@/types/api'
 
 // ── Keys ─────────────────────────────────────────────────────────
 export const sessionKeys = {
@@ -19,16 +19,26 @@ export function useCreateSession() {
   return useMutation({
     mutationFn: (req: NewSessionRequest) => sessionsApi.create(req),
     onSuccess: (data) => {
+      const now = new Date().toISOString()
       const firstMsg: MessageDto = {
         id:        crypto.randomUUID(),
         role:      'assistant',
         content:   data.message,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
       }
       startSession(data.sessionId, firstMsg, data.diagram)
-      // Show approval banner instead of auto-locking — same as mid-chat complete
       if (data.complete) setPendingComplete(true)
-      // Refresh the folder sidebar
+      // Pre-seed the RQ cache so useSessionDetail finds data immediately
+      // (isLoading stays false, no redundant network round-trip on creation).
+      qc.setQueryData<SessionDetailResponse>(sessionKeys.detail(data.sessionId), {
+        sessionId:      data.sessionId,
+        name:           data.name,
+        createdAt:      now,
+        lastActivity:   now,
+        currentDiagram: data.diagram,
+        complete:       data.complete,
+        messages:       [firstMsg],
+      })
       qc.invalidateQueries({ queryKey: folderKeys.tree })
     },
   })
