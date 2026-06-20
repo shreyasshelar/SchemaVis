@@ -1127,25 +1127,15 @@ function Footer() {
 // Page root
 // ─────────────────────────────────────────────────────────────────
 export default function DocsPage() {
-  // Override the app-level overflow:hidden so the window itself scrolls.
-  // whileInView uses the window viewport — it won't fire inside a div scroller.
+  // Inject a <style> tag to override the app-level overflow:hidden rules.
+  // The globals.css sets html/body/#root to overflow:hidden for the workspace.
+  // DocsPage needs normal window scrolling, so we use !important to win the cascade.
   useEffect(() => {
-    const html = document.documentElement
-    const body = document.body
-    const root = document.getElementById('root')
-    const prev = {
-      htmlH: html.style.height, htmlO: html.style.overflow,
-      bodyH: body.style.height, bodyO: body.style.overflow,
-      rootH: root?.style.height, rootO: root?.style.overflow,
-    }
-    html.style.height = 'auto'; html.style.overflow = 'auto'
-    body.style.height = 'auto'; body.style.overflow = 'auto'
-    if (root) { root.style.height = 'auto'; root.style.overflow = 'auto' }
-    return () => {
-      html.style.height = prev.htmlH; html.style.overflow = prev.htmlO
-      body.style.height = prev.bodyH; body.style.overflow = prev.bodyO
-      if (root) { root.style.height = prev.rootH!; root.style.overflow = prev.rootO! }
-    }
+    const style = document.createElement('style')
+    style.id = 'docs-scroll-override'
+    style.textContent = 'html, body, #root { overflow: auto !important; height: auto !important; }'
+    document.head.appendChild(style)
+    return () => { document.getElementById('docs-scroll-override')?.remove() }
   }, [])
 
   return (
