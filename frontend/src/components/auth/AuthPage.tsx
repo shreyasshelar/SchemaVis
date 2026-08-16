@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   DatabaseIcon, EyeIcon, EyeOffIcon,
-  BookOpenIcon, AlertCircleIcon,
+  BookOpenIcon, AlertCircleIcon, Loader2Icon,
 } from 'lucide-react'
 import { useLogin, useRegister } from '@/hooks/useAuth'
 
@@ -135,8 +135,10 @@ export function LoginPage() {
           type="submit"
           disabled={login.isPending}
           className="mt-1 h-10 rounded-lg bg-acc text-white font-semibold text-sm
-                     hover:bg-acc/90 disabled:opacity-50 transition-colors"
+                     hover:bg-acc/90 disabled:opacity-50 transition-colors
+                     flex items-center justify-center gap-2"
         >
+          {login.isPending && <Loader2Icon size={14} className="animate-spin" />}
           {login.isPending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
@@ -214,8 +216,10 @@ export function RegisterPage() {
           type="submit"
           disabled={register.isPending}
           className="mt-1 h-10 rounded-lg bg-acc text-white font-semibold text-sm
-                     hover:bg-acc/90 disabled:opacity-50 transition-colors"
+                     hover:bg-acc/90 disabled:opacity-50 transition-colors
+                     flex items-center justify-center gap-2"
         >
+          {register.isPending && <Loader2Icon size={14} className="animate-spin" />}
           {register.isPending ? 'Creating account…' : 'Create account'}
         </button>
       </form>
@@ -234,6 +238,12 @@ function AuthShell({ title, sub, children }: {
   sub:   string
   children: React.ReactNode
 }) {
+  useEffect(() => {
+    // Warm up the Cloud Run backend so the cold-start delay happens here
+    // (while the user fills the form) rather than after they click submit.
+    fetch('/api/auth/me').catch(() => {})
+  }, [])
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-base px-4">
       {/* Top nav */}
