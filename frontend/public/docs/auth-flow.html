@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SchemaVis — Auth Flow</title>
+<style>
+  :root{--bg:#08080f;--panel:#0d0d18;--surf:#13131f;--acc:#7c3aed;--accL:#a78bfa;--hi:#eaeaf5;--sec:#8a8aab;--muted:#48486a;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;--brd:#252538;--brdLt:#303048;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--hi);font-family:Inter,system-ui,sans-serif;min-height:100vh;font-size:13px;line-height:1.6;}
+  header{border-bottom:1px solid var(--brd);padding:14px 28px;display:flex;align-items:center;gap:12px;}
+  .logo{font-size:1.1rem;font-weight:800;} .logo span{color:var(--accL);}
+  a.back{margin-left:auto;color:var(--sec);text-decoration:none;font-size:.82rem;}
+  a.back:hover{color:var(--hi);}
+  main{max-width:760px;margin:0 auto;padding:36px 20px 80px;}
+  h2{font-size:1.45rem;font-weight:800;margin-bottom:6px;}
+  .subtitle{color:var(--sec);font-size:.875rem;margin-bottom:32px;line-height:1.6;}
+  h3{font-size:.95rem;font-weight:700;margin-bottom:14px;color:var(--hi);}
+  section{margin-bottom:36px;}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--brd);}
+  .tab{padding:8px 16px;font-size:.82rem;font-weight:600;cursor:pointer;color:var(--sec);border-bottom:2px solid transparent;transition:.15s;margin-bottom:-1px;}
+  .tab:hover{color:var(--hi);}
+  .tab.active{color:var(--acc);border-bottom-color:var(--acc);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* Form demo */
+  .form-card{background:var(--panel);border:1px solid var(--brd);border-radius:16px;padding:28px;max-width:400px;margin:0 auto;}
+  .form-logo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px;}
+  .form-logo-icon{width:30px;height:30px;border-radius:10px;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.4);display:flex;align-items:center;justify-content:center;}
+  .form-logo-icon svg{color:var(--accL);}
+  .form-logo-text{font-weight:800;font-size:1.1rem;}
+  .form-logo-text span{color:var(--accL);}
+  .form-title{font-size:1rem;font-weight:700;margin-bottom:4px;}
+  .form-sub{font-size:.8rem;color:var(--sec);margin-bottom:20px;}
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}
+  .field label{font-size:.75rem;font-weight:600;color:var(--sec);}
+  .field label.err-label{color:var(--err);}
+  .field input{background:rgba(255,255,255,.04);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;color:var(--hi);font-size:.82rem;font-family:inherit;outline:none;transition:.15s;width:100%;}
+  .field input:focus{border-color:rgba(124,58,237,.6);box-shadow:0 0 0 3px rgba(124,58,237,.12);}
+  .field input.err-input{border-color:rgba(239,68,68,.6);box-shadow:0 0 0 3px rgba(239,68,68,.12);}
+  .err-msg{font-size:.72rem;color:var(--err);display:flex;align-items:center;gap:4px;}
+  .submit-btn{width:100%;height:38px;background:var(--acc);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;}
+  .submit-btn:hover:not(:disabled){background:#6d28d9;}
+  .submit-btn:disabled{opacity:.55;cursor:not-allowed;}
+  .form-switch{text-align:center;font-size:.75rem;color:var(--sec);margin-top:14px;}
+  .form-switch a{color:var(--acc);text-decoration:none;}
+  .success-banner{display:none;padding:10px 14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:8px;font-size:.8rem;color:var(--ok);margin-bottom:14px;text-align:center;}
+
+  /* Spinner */
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+
+  /* Warm-up timeline */
+  .timeline{position:relative;padding-left:24px;margin-top:8px;}
+  .timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--brd);}
+  .tl-item{position:relative;margin-bottom:18px;}
+  .tl-dot{position:absolute;left:-24px;top:3px;width:14px;height:14px;border-radius:50%;border:2px solid var(--brd);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:8px;transition:.4s;}
+  .tl-dot.ok{border-color:var(--ok);background:rgba(16,185,129,.15);color:var(--ok);}
+  .tl-dot.active{border-color:var(--acc);background:rgba(124,58,237,.15);}
+  .tl-dot.pending{border-color:var(--warn);background:rgba(245,158,11,.1);}
+  .tl-label{font-size:.82rem;font-weight:600;color:var(--hi);}
+  .tl-sub{font-size:.75rem;color:var(--sec);margin-top:2px;}
+  .tl-badge{display:inline-block;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:99px;margin-left:8px;vertical-align:middle;}
+  .badge-ok{background:rgba(16,185,129,.12);color:var(--ok);border:1px solid rgba(16,185,129,.25);}
+  .badge-fast{background:rgba(124,58,237,.12);color:var(--accL);border:1px solid rgba(124,58,237,.25);}
+  .badge-slow{background:rgba(245,158,11,.12);color:var(--warn);border:1px solid rgba(245,158,11,.25);}
+  .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+  .compare-card{background:var(--panel);border:1px solid var(--brd);border-radius:10px;padding:14px;}
+  .compare-card h4{font-size:.78rem;font-weight:700;margin-bottom:10px;}
+  .compare-card.before h4{color:var(--warn);}
+  .compare-card.after h4{color:var(--ok);}
+  .c-step{font-size:.73rem;color:var(--sec);padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:6px;}
+  .c-step:last-child{border-bottom:none;}
+  .c-step .dot{width:5px;height:5px;border-radius:50%;flex:none;}
+  .dot-ok{background:var(--ok);}
+  .dot-warn{background:var(--warn);}
+  .dot-acc{background:var(--acc);}
+  .c-step .duration{margin-left:auto;font-size:.68rem;font-family:monospace;color:var(--muted);}
+  .c-step.highlight{color:var(--hi);}
+  .c-step.highlight .duration{color:var(--ok);font-weight:700;}
+
+  /* API endpoints */
+  .endpoint{border:1px solid var(--brd);border-radius:10px;overflow:hidden;margin-bottom:10px;}
+  .ep-header{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;background:var(--panel);transition:.15s;}
+  .ep-header:hover{background:var(--surf);}
+  .method{font-size:.68rem;font-weight:800;padding:2px 7px;border-radius:5px;font-family:monospace;flex:none;}
+  .method.post{background:rgba(124,58,237,.15);color:var(--accL);border:1px solid rgba(124,58,237,.25);}
+  .method.get{background:rgba(16,185,129,.12);color:var(--ok);border:1px solid rgba(16,185,129,.25);}
+  .ep-path{font-family:monospace;font-size:.78rem;color:var(--hi);flex:1;}
+  .ep-desc{font-size:.72rem;color:var(--sec);}
+  .ep-chevron{font-size:.7rem;color:var(--muted);transition:transform .2s;margin-left:8px;}
+  .ep-chevron.open{transform:rotate(180deg);}
+  .ep-body{display:none;border-top:1px solid var(--brd);background:var(--bg);}
+  .ep-body.open{display:block;}
+  .ep-tabs{display:flex;gap:0;border-bottom:1px solid var(--brd);}
+  .ep-tab{padding:7px 14px;font-size:.72rem;font-weight:600;cursor:pointer;color:var(--sec);border-bottom:2px solid transparent;transition:.15s;margin-bottom:-1px;}
+  .ep-tab:hover{color:var(--hi);}
+  .ep-tab.active{color:var(--acc);border-bottom-color:var(--acc);}
+  .ep-content{display:none;padding:14px;}
+  .ep-content.active{display:block;}
+  pre{background:var(--surf);border:1px solid var(--brd);border-radius:7px;padding:12px 14px;font-size:.72rem;color:var(--sec);overflow-x:auto;line-height:1.7;}
+  .kw{color:var(--accL);}
+  .str{color:#a5d6a7;}
+  .num{color:#ffcc80;}
+  .key{color:#90caf9;}
+  .note{font-size:.72rem;color:var(--sec);margin-top:8px;padding:8px 12px;background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.15);border-radius:6px;}
+
+  /* JWT anatomy */
+  .jwt-box{background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:14px;font-family:monospace;font-size:.72rem;word-break:break-all;line-height:1.8;margin-bottom:14px;}
+  .jwt-h{color:#e57373;}
+  .jwt-p{color:#fff59d;}
+  .jwt-s{color:#80cbc4;}
+  .jwt-dot{color:var(--muted);}
+  .claim-grid{display:grid;grid-template-columns:120px 1fr;gap:4px 12px;font-size:.75rem;}
+  .claim-key{color:var(--sec);font-family:monospace;}
+  .claim-val{color:var(--hi);}
+
+  /* Store diagram */
+  .store-row{display:flex;align-items:center;gap:8px;font-size:.75rem;margin-bottom:8px;}
+  .store-key{font-family:monospace;color:var(--accL);background:rgba(124,58,237,.1);padding:2px 8px;border-radius:4px;}
+  .arrow{color:var(--muted);}
+  .store-val{color:var(--sec);}
+  .ls-box{background:var(--surf);border:1px solid var(--brd);border-radius:8px;padding:12px 14px;font-size:.72rem;font-family:monospace;margin-bottom:12px;}
+  .ls-key{color:var(--sec);}
+  .ls-val{color:var(--str);}
+
+  /* Util */
+  code{color:var(--accL);font-family:monospace;background:rgba(124,58,237,.1);padding:1px 5px;border-radius:4px;font-size:.8em;}
+  .pill{display:inline-block;font-size:.65rem;font-weight:700;padding:1px 8px;border-radius:99px;border:1px solid var(--brd);background:var(--surf);color:var(--sec);}
+
+  @media(max-width:520px){.compare-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Schema<span>Vis</span></div>
+  <a class="back" href="/docs">← Docs home</a>
+</header>
+<main>
+  <h2>Authentication Flow</h2>
+  <p class="subtitle">Interactive reference for the full register / login lifecycle — form validation, backend warm-up, JWT storage, and API contracts. Try the live form demo below.</p>
+
+  <!-- ── Tabs ─────────────────────────────────────────────────── -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('demo')">Live demo</div>
+    <div class="tab" onclick="switchTab('warmup')">Warm-up &amp; cold start</div>
+    <div class="tab" onclick="switchTab('api')">API reference</div>
+    <div class="tab" onclick="switchTab('token')">JWT &amp; storage</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- TAB 1 — Live demo                                        -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div id="tab-demo" class="tab-panel active">
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;">
+      <button class="pill" id="mode-reg" style="cursor:pointer;border-color:var(--acc);color:var(--acc);background:rgba(124,58,237,.1);" onclick="setMode('register')">Register</button>
+      <button class="pill" id="mode-log" style="cursor:pointer;" onclick="setMode('login')">Login</button>
+    </div>
+
+    <!-- Register form -->
+    <div id="form-register" class="form-card">
+      <div class="form-logo">
+        <div class="form-logo-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 9v4c0 1.7 4 3 9 3s9-1.3 9-3V9"/><path d="M3 13v4c0 1.7 4 3 9 3s9-1.3 9-3v-4"/></svg>
+        </div>
+        <div class="form-logo-text">Schema<span>Vis</span></div>
+      </div>
+      <div class="form-title">Create account</div>
+      <div class="form-sub">Start visualising your schemas today</div>
+      <div class="success-banner" id="reg-success">Account created! Redirecting to workspace…</div>
+      <div class="field">
+        <label id="lbl-name">Display name</label>
+        <input type="text" id="inp-name" placeholder="Shreyas" oninput="clearErr('name')" />
+        <div class="err-msg" id="err-name" style="display:none">⚠ Display name is required</div>
+      </div>
+      <div class="field">
+        <label id="lbl-email">Email</label>
+        <input type="email" id="inp-email" placeholder="you@example.com" oninput="clearErr('email')" />
+        <div class="err-msg" id="err-email" style="display:none">⚠ Enter a valid email address</div>
+      </div>
+      <div class="field">
+        <label id="lbl-pw">Password</label>
+        <input type="password" id="inp-pw" placeholder="8+ characters" oninput="clearErr('pw')" />
+        <div class="err-msg" id="err-pw" style="display:none">⚠ Password must be at least 8 characters</div>
+      </div>
+      <button class="submit-btn" id="reg-btn" onclick="submitReg()">Create account</button>
+      <div class="form-switch">Already have an account? <a href="#" onclick="setMode('login');return false;">Sign in</a></div>
+    </div>
+
+    <!-- Login form -->
+    <div id="form-login" class="form-card" style="display:none;">
+      <div class="form-logo">
+        <div class="form-logo-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 9v4c0 1.7 4 3 9 3s9-1.3 9-3V9"/><path d="M3 13v4c0 1.7 4 3 9 3s9-1.3 9-3v-4"/></svg>
+        </div>
+        <div class="form-logo-text">Schema<span>Vis</span></div>
+      </div>
+      <div class="form-title">Welcome back</div>
+      <div class="form-sub">Sign in to your SchemaVis account</div>
+      <div class="success-banner" id="log-success">Signed in! Redirecting to workspace…</div>
+      <div class="field">
+        <label id="lbl-lemail">Email</label>
+        <input type="email" id="inp-lemail" placeholder="you@example.com" oninput="clearLoginErr('lemail')" />
+        <div class="err-msg" id="err-lemail" style="display:none">⚠ Enter a valid email address</div>
+      </div>
+      <div class="field">
+        <label id="lbl-lpw">Password</label>
+        <input type="password" id="inp-lpw" placeholder="••••••••" oninput="clearLoginErr('lpw')" />
+        <div class="err-msg" id="err-lpw" style="display:none">⚠ Password is required</div>
+      </div>
+      <button class="submit-btn" id="log-btn" onclick="submitLogin()">Sign in</button>
+      <div class="form-switch">No account? <a href="#" onclick="setMode('register');return false;">Create one</a></div>
+    </div>
+
+    <p style="text-align:center;font-size:.72rem;color:var(--muted);margin-top:14px;">
+      ↑ Simulation only — no real API calls. Try submitting empty or invalid fields.
+    </p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- TAB 2 — Warm-up                                          -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div id="tab-warmup" class="tab-panel">
+    <h3>The cold start problem</h3>
+    <p style="color:var(--sec);font-size:.82rem;margin-bottom:16px;line-height:1.7;">
+      SchemaVis runs on <strong style="color:var(--hi)">GCP Cloud Run</strong>, which scales to zero when idle.
+      After a period of inactivity the backend spins down. The first incoming request must wait ~5 s for a new
+      container to start before getting a response. On the auth page this means a user clicks
+      <em>Create account</em>, sees nothing happen for several seconds, and assumes the form is broken.
+    </p>
+
+    <div class="compare-grid">
+      <div class="compare-card before">
+        <h4>❌ Before fix</h4>
+        <div class="c-step"><span class="dot dot-acc"></span>User opens /register</div>
+        <div class="c-step"><span class="dot dot-acc"></span>Fills 3 fields…</div>
+        <div class="c-step highlight"><span class="dot dot-warn"></span>Clicks <em>Create account</em><span class="duration">0 ms</span></div>
+        <div class="c-step"><span class="dot dot-warn"></span>POST /api/auth/register<span class="duration">0 ms</span></div>
+        <div class="c-step"><span class="dot dot-warn"></span>Container cold-starting…<span class="duration">+4 800 ms</span></div>
+        <div class="c-step highlight"><span class="dot dot-warn"></span>Backend responds<span class="duration" style="color:var(--warn);">~5 000 ms</span></div>
+      </div>
+      <div class="compare-card after">
+        <h4>✅ After fix</h4>
+        <div class="c-step highlight"><span class="dot dot-ok"></span>User opens /register<span class="duration" style="color:var(--ok);">0 ms</span></div>
+        <div class="c-step"><span class="dot dot-ok"></span>GET /api/auth/me (warm-up)<span class="duration">0 ms</span></div>
+        <div class="c-step"><span class="dot dot-ok"></span>Container starts in bg…<span class="duration">+4 800 ms</span></div>
+        <div class="c-step"><span class="dot dot-acc"></span>Fills 3 fields…</div>
+        <div class="c-step highlight"><span class="dot dot-acc"></span>Clicks <em>Create account</em></div>
+        <div class="c-step highlight"><span class="dot dot-ok"></span>Backend responds<span class="duration" style="color:var(--ok);">&lt; 300 ms</span></div>
+      </div>
+    </div>
+
+    <p style="margin-top:16px;font-size:.78rem;color:var(--sec);">The warm-up request returns <code>401 Unauthorized</code> (no token) — that's expected and ignored. The only goal is to force Cloud Run to spin up the container while the user is still filling the form.</p>
+
+    <div style="margin-top:28px;">
+      <h3>Live warm-up timeline</h3>
+      <p style="color:var(--sec);font-size:.78rem;margin-bottom:16px;">Click <strong style="color:var(--hi)">Simulate page load</strong> to watch the sequence.</p>
+      <button class="submit-btn" style="max-width:200px;margin:0 auto 20px;" id="sim-btn" onclick="runSim()">▶ Simulate page load</button>
+      <div class="timeline" id="tl">
+        <div class="tl-item"><div class="tl-dot" id="tl0">○</div><div class="tl-label">Page mounts</div><div class="tl-sub">React renders <code>/register</code>, AuthShell useEffect fires</div></div>
+        <div class="tl-item"><div class="tl-dot" id="tl1">○</div><div class="tl-label">Warm-up ping sent<span class="tl-badge badge-ok" style="display:none" id="b1">401 — ok</span></div><div class="tl-sub"><code>GET /api/auth/me</code> — no token, expects 401</div></div>
+        <div class="tl-item"><div class="tl-dot" id="tl2">○</div><div class="tl-label">Container starting…<span class="tl-badge badge-slow" style="display:none" id="b2">~5 s</span></div><div class="tl-sub">Cloud Run allocates a new instance in the background</div></div>
+        <div class="tl-item"><div class="tl-dot" id="tl3">○</div><div class="tl-label">User fills form</div><div class="tl-sub">Display name → Email → Password (takes ~15–30 s)</div></div>
+        <div class="tl-item"><div class="tl-dot" id="tl4">○</div><div class="tl-label">User clicks <em>Create account</em></div><div class="tl-sub">Spinner shows immediately, backend already warm</div></div>
+        <div class="tl-item"><div class="tl-dot" id="tl5">○</div><div class="tl-label">POST /api/auth/register → 200<span class="tl-badge badge-fast" style="display:none" id="b5">&lt; 300 ms</span></div><div class="tl-sub">JWT returned, stored in localStorage, navigate to /</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- TAB 3 — API reference                                    -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div id="tab-api" class="tab-panel">
+    <h3>Auth endpoints</h3>
+    <p style="color:var(--sec);font-size:.78rem;margin-bottom:18px;">Three endpoints cover the full auth lifecycle. All are proxied through nginx — the frontend container forwards <code>/api/*</code> to the Cloud Run backend.</p>
+
+    <!-- Register -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggleEp(this)">
+        <span class="method post">POST</span>
+        <span class="ep-path">/api/auth/register</span>
+        <span class="ep-desc">Create a new account</span>
+        <span class="ep-chevron">▼</span>
+      </div>
+      <div class="ep-body">
+        <div class="ep-tabs">
+          <div class="ep-tab active" onclick="switchEpTab(this,'req')">Request</div>
+          <div class="ep-tab" onclick="switchEpTab(this,'res200')">200 OK</div>
+          <div class="ep-tab" onclick="switchEpTab(this,'res409')">409 Conflict</div>
+        </div>
+        <div class="ep-content active" data-tab="req">
+          <pre><span class="key">"displayName"</span>: <span class="str">"Shreyas"</span>,  <span class="kw">// required</span>
+<span class="key">"email"</span>:       <span class="str">"you@example.com"</span>,  <span class="kw">// required, unique</span>
+<span class="key">"password"</span>:    <span class="str">"8+chars"</span>  <span class="kw">// required, min 8 chars</span></pre>
+          <div class="note">Content-Type: application/json. No auth header required.</div>
+        </div>
+        <div class="ep-content" data-tab="res200">
+          <pre><span class="key">"token"</span>:       <span class="str">"eyJhbGc..."</span>,  <span class="kw">// JWT — store in localStorage</span>
+<span class="key">"userId"</span>:      <span class="str">"uuid-..."</span>,
+<span class="key">"email"</span>:       <span class="str">"you@example.com"</span>,
+<span class="key">"displayName"</span>: <span class="str">"Shreyas"</span></pre>
+        </div>
+        <div class="ep-content" data-tab="res409">
+          <pre><span class="key">"message"</span>: <span class="str">"Email already in use"</span>
+<span class="kw">// HTTP 409 Conflict</span></pre>
+          <div class="note">The UI shows this message verbatim in the red error banner below the form fields.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggleEp(this)">
+        <span class="method post">POST</span>
+        <span class="ep-path">/api/auth/login</span>
+        <span class="ep-desc">Sign in to an existing account</span>
+        <span class="ep-chevron">▼</span>
+      </div>
+      <div class="ep-body">
+        <div class="ep-tabs">
+          <div class="ep-tab active" onclick="switchEpTab(this,'req')">Request</div>
+          <div class="ep-tab" onclick="switchEpTab(this,'res200')">200 OK</div>
+          <div class="ep-tab" onclick="switchEpTab(this,'res401')">401 Unauthorized</div>
+        </div>
+        <div class="ep-content active" data-tab="req">
+          <pre><span class="key">"email"</span>:    <span class="str">"you@example.com"</span>,
+<span class="key">"password"</span>: <span class="str">"yourpassword"</span></pre>
+        </div>
+        <div class="ep-content" data-tab="res200">
+          <pre><span class="key">"token"</span>:       <span class="str">"eyJhbGc..."</span>,
+<span class="key">"userId"</span>:      <span class="str">"uuid-..."</span>,
+<span class="key">"email"</span>:       <span class="str">"you@example.com"</span>,
+<span class="key">"displayName"</span>: <span class="str">"Shreyas"</span></pre>
+        </div>
+        <div class="ep-content" data-tab="res401">
+          <pre><span class="key">"message"</span>: <span class="str">"Invalid credentials"</span>
+<span class="kw">// HTTP 401 Unauthorized</span></pre>
+          <div class="note">Shown as "Incorrect email or password. Please try again." in the error banner.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Me -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggleEp(this)">
+        <span class="method get">GET</span>
+        <span class="ep-path">/api/auth/me</span>
+        <span class="ep-desc">Validate token + fetch current user</span>
+        <span class="ep-chevron">▼</span>
+      </div>
+      <div class="ep-body">
+        <div class="ep-tabs">
+          <div class="ep-tab active" onclick="switchEpTab(this,'req')">Request</div>
+          <div class="ep-tab" onclick="switchEpTab(this,'res200')">200 OK</div>
+          <div class="ep-tab" onclick="switchEpTab(this,'warmup')">Warm-up use</div>
+        </div>
+        <div class="ep-content active" data-tab="req">
+          <pre><span class="kw">// Header (attached by axios interceptor)</span>
+Authorization: Bearer &lt;token&gt;
+
+<span class="kw">// For warm-up: fired with no token → 401</span>
+<span class="kw">// That's fine — only the container spin-up matters</span></pre>
+        </div>
+        <div class="ep-content" data-tab="res200">
+          <pre><span class="key">"id"</span>:          <span class="str">"uuid-..."</span>,
+<span class="key">"email"</span>:       <span class="str">"you@example.com"</span>,
+<span class="key">"displayName"</span>: <span class="str">"Shreyas"</span>,
+<span class="key">"createdAt"</span>:   <span class="str">"2026-08-16T10:00:00Z"</span></pre>
+        </div>
+        <div class="ep-content" data-tab="warmup">
+          <pre><span class="kw">// AuthShell fires this on mount:</span>
+fetch(<span class="str">'/api/auth/me'</span>).catch(() => {})
+
+<span class="kw">// No token → 401 response → catch ignores it
+// Side effect: Cloud Run container is now warm</span></pre>
+          <div class="note">This is also used by the app on startup to revalidate a stored JWT after a page refresh.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- TAB 4 — JWT & storage                                    -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div id="tab-token" class="tab-panel">
+    <h3>JWT structure</h3>
+    <p style="color:var(--sec);font-size:.78rem;margin-bottom:12px;">The backend returns a signed JWT. It has three Base64url-encoded parts separated by dots.</p>
+    <div class="jwt-box">
+      <span class="jwt-h">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9</span><span class="jwt-dot">.</span><span class="jwt-p">eyJ1c2VySWQiOiJ1dWlkLTEyMyIsImVtYWlsIjoieW91QGV4YW1wbGUuY29tIiwiaWF0IjoxNzU1MDAwMDAwLCJleHAiOjE3NTU2MDQ4MDB9</span><span class="jwt-dot">.</span><span class="jwt-s">SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c</span>
+    </div>
+    <div style="display:flex;gap:20px;font-size:.73rem;margin-bottom:20px;">
+      <div><span class="jwt-h">■</span> <span style="color:var(--sec);">Header — alg + typ</span></div>
+      <div><span class="jwt-p">■</span> <span style="color:var(--sec);">Payload — claims</span></div>
+      <div><span class="jwt-s">■</span> <span style="color:var(--sec);">Signature — HMAC-SHA256</span></div>
+    </div>
+
+    <h3>Payload claims</h3>
+    <div class="claim-grid" style="margin-bottom:24px;">
+      <div class="claim-key">userId</div><div class="claim-val">User's UUID from the database</div>
+      <div class="claim-key">email</div><div class="claim-val">User's email address</div>
+      <div class="claim-key">iat</div><div class="claim-val">Issued-at Unix timestamp</div>
+      <div class="claim-key">exp</div><div class="claim-val">Expiry timestamp (7 days from issue)</div>
+    </div>
+
+    <h3>localStorage schema</h3>
+    <p style="color:var(--sec);font-size:.78rem;margin-bottom:10px;">Zustand's <code>persist</code> middleware writes auth state under the key <code>schemavis-auth</code>. The format is the Zustand persist envelope.</p>
+    <div class="ls-box">
+<span class="ls-key">Key:</span>   <span style="color:var(--accL);">schemavis-auth</span>
+<span class="ls-key">Value:</span> {
+  <span class="str">"state"</span>: {
+    <span class="str">"token"</span>:           <span style="color:#fff59d;">"eyJhbGc…"</span>,
+    <span class="str">"user"</span>: {
+      <span class="str">"id"</span>:          <span style="color:#fff59d;">"uuid-123"</span>,
+      <span class="str">"email"</span>:       <span style="color:#fff59d;">"you@example.com"</span>,
+      <span class="str">"displayName"</span>: <span style="color:#fff59d;">"Shreyas"</span>
+    },
+    <span class="str">"isAuthenticated"</span>: <span class="num">true</span>
+  },
+  <span class="str">"version"</span>: <span class="num">0</span>
+}
+    </div>
+
+    <h3>Request interceptor</h3>
+    <p style="color:var(--sec);font-size:.78rem;margin-bottom:10px;">Every API call through <code>apiClient</code> automatically attaches the token. No manual header management required.</p>
+    <pre>apiClient.interceptors.request.use((config) => {
+  <span class="kw">const</span> raw = localStorage.getItem(<span class="str">'schemavis-auth'</span>)
+  <span class="kw">const</span> token = JSON.parse(raw)?.state?.token
+  <span class="kw">if</span> (token) config.headers.Authorization = <span class="str">`Bearer ${token}`</span>
+  <span class="kw">return</span> config
+})</pre>
+
+    <div class="note" style="margin-top:14px;">On page refresh, <code>useAuthHydrated()</code> waits for Zustand to rehydrate from localStorage before the router decides to redirect. This prevents a flash-to-login for already-authenticated users.</div>
+  </div>
+</main>
+
+<script>
+// ── Tab switching ─────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const panels = ['demo','warmup','api','token']
+    t.classList.toggle('active', panels[i] === id)
+  })
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-'+id)
+  })
+}
+
+// ── Form mode toggle ──────────────────────────────────────────
+function setMode(m) {
+  document.getElementById('form-register').style.display = m==='register' ? '' : 'none'
+  document.getElementById('form-login').style.display    = m==='login'    ? '' : 'none'
+  const r = document.getElementById('mode-reg')
+  const l = document.getElementById('mode-log')
+  const ON  = 'cursor:pointer;border-color:var(--acc);color:var(--acc);background:rgba(124,58,237,.1);'
+  const OFF = 'cursor:pointer;'
+  r.style.cssText = m==='register' ? ON : OFF
+  l.style.cssText = m==='login'    ? ON : OFF
+}
+
+// ── Register demo ─────────────────────────────────────────────
+function clearErr(f) {
+  document.getElementById('err-'+f).style.display = 'none'
+  document.getElementById('inp-'+f).classList.remove('err-input')
+  const lbls = {name:'lbl-name',email:'lbl-email',pw:'lbl-pw'}
+  document.getElementById(lbls[f]).classList.remove('err-label')
+}
+function submitReg() {
+  const name  = document.getElementById('inp-name').value.trim()
+  const email = document.getElementById('inp-email').value.trim()
+  const pw    = document.getElementById('inp-pw').value
+  let ok = true
+  if (!name)  { showErr('name',  'Display name is required'); ok=false }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('email','Enter a valid email address'); ok=false }
+  if (!pw || pw.length < 8) { showErr('pw','Password must be at least 8 characters'); ok=false }
+  if (!ok) return
+  const btn = document.getElementById('reg-btn')
+  btn.disabled = true
+  btn.innerHTML = '<span class="spin"></span> Creating account…'
+  setTimeout(() => {
+    btn.disabled = false
+    btn.innerHTML = 'Create account'
+    const banner = document.getElementById('reg-success')
+    banner.style.display = 'block'
+    setTimeout(() => banner.style.display = 'none', 3000)
+    document.getElementById('inp-name').value = ''
+    document.getElementById('inp-email').value = ''
+    document.getElementById('inp-pw').value = ''
+  }, 1400)
+}
+function showErr(f, msg) {
+  const el = document.getElementById('err-'+f)
+  el.textContent = '⚠ ' + msg
+  el.style.display = 'flex'
+  document.getElementById('inp-'+f).classList.add('err-input')
+  const lbls = {name:'lbl-name',email:'lbl-email',pw:'lbl-pw'}
+  document.getElementById(lbls[f]).classList.add('err-label')
+}
+
+// ── Login demo ────────────────────────────────────────────────
+function clearLoginErr(f) {
+  document.getElementById('err-'+f).style.display = 'none'
+  document.getElementById('inp-'+f).classList.remove('err-input')
+}
+function submitLogin() {
+  const email = document.getElementById('inp-lemail').value.trim()
+  const pw    = document.getElementById('inp-lpw').value
+  let ok = true
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    document.getElementById('err-lemail').style.display='flex'; ok=false
+    document.getElementById('inp-lemail').classList.add('err-input')
+  }
+  if (!pw) {
+    document.getElementById('err-lpw').style.display='flex'; ok=false
+    document.getElementById('inp-lpw').classList.add('err-input')
+  }
+  if (!ok) return
+  const btn = document.getElementById('log-btn')
+  btn.disabled = true
+  btn.innerHTML = '<span class="spin"></span> Signing in…'
+  setTimeout(() => {
+    btn.disabled = false
+    btn.innerHTML = 'Sign in'
+    const banner = document.getElementById('log-success')
+    banner.style.display = 'block'
+    setTimeout(() => banner.style.display = 'none', 3000)
+    document.getElementById('inp-lemail').value = ''
+    document.getElementById('inp-lpw').value = ''
+  }, 1000)
+}
+
+// ── Warm-up simulation ────────────────────────────────────────
+let simRunning = false
+function runSim() {
+  if (simRunning) return
+  simRunning = true
+  const btn = document.getElementById('sim-btn')
+  btn.disabled = true
+  btn.textContent = 'Running…'
+  const ids = ['tl0','tl1','tl2','tl3','tl4','tl5']
+  const badges = [null,'b1','b2',null,null,'b5']
+  ids.forEach(id => {
+    const el = document.getElementById(id)
+    el.className = 'tl-dot'
+    el.textContent = '○'
+  })
+  badges.forEach(b => { if (b) document.getElementById(b).style.display='none' })
+  const steps = [
+    { dot:'tl0', cls:'ok',     char:'✓', delay:300 },
+    { dot:'tl1', cls:'active', char:'…', delay:600,  badge:'b1', badgeDelay:900 },
+    { dot:'tl2', cls:'pending',char:'…', delay:1000, badge:'b2', badgeDelay:2200 },
+    { dot:'tl3', cls:'ok',     char:'✓', delay:2500 },
+    { dot:'tl4', cls:'ok',     char:'✓', delay:3200 },
+    { dot:'tl5', cls:'ok',     char:'✓', delay:3600, badge:'b5', badgeDelay:3700 },
+  ]
+  steps.forEach(s => {
+    setTimeout(() => {
+      const el = document.getElementById(s.dot)
+      el.className = 'tl-dot ' + s.cls
+      el.textContent = s.char
+    }, s.delay)
+    if (s.badge) {
+      setTimeout(() => {
+        document.getElementById(s.badge).style.display = 'inline-block'
+        if (s.dot === 'tl1') document.getElementById(s.dot).className = 'tl-dot ok'
+        if (s.dot === 'tl1') document.getElementById(s.dot).textContent = '✓'
+      }, s.badgeDelay)
+    }
+  })
+  setTimeout(() => {
+    btn.disabled = false
+    btn.textContent = '▶ Simulate page load'
+    simRunning = false
+  }, 4200)
+}
+
+// ── API endpoint accordion ────────────────────────────────────
+function toggleEp(header) {
+  const body = header.nextElementSibling
+  const chev = header.querySelector('.ep-chevron')
+  const open = body.classList.toggle('open')
+  chev.classList.toggle('open', open)
+}
+function switchEpTab(tab, name) {
+  const body = tab.closest('.ep-body')
+  body.querySelectorAll('.ep-tab').forEach(t => t.classList.remove('active'))
+  body.querySelectorAll('.ep-content').forEach(c => c.classList.remove('active'))
+  tab.classList.add('active')
+  body.querySelector(`.ep-content[data-tab="${name}"]`).classList.add('active')
+}
+</script>
+</body>
+</html>
