@@ -970,6 +970,13 @@ const ARTIFACTS = [
     href: '/docs/setup-guide.html',
     tag: 'Interactive checklist',
   },
+  {
+    icon: <KeyIcon size={18} className="text-yellow-400" />,
+    title: 'Auth flow',
+    desc: 'Live register/login form demo with validation, warm-up cold-start explainer, API endpoint reference, and JWT storage anatomy.',
+    href: '/docs/auth-flow.html',
+    tag: 'Live demo',
+  },
 ]
 
 function Artifacts() {
@@ -1109,6 +1116,7 @@ function Footer() {
           )}
           <a href="/docs/architecture.html" className="hover:text-hi transition-colors">Architecture</a>
           <a href="/docs/api-reference.html" className="hover:text-hi transition-colors">API docs</a>
+          <a href="/docs/auth-flow.html" className="hover:text-hi transition-colors">Auth flow</a>
           <a
             href="https://github.com/shreyasshelar/SchemaVis"
             target="_blank"
